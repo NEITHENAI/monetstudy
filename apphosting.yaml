@@ -1,0 +1,27 @@
+runConfig:
+  runtime: nodejs20
+  concurrency: 80
+  minInstances: 0
+  maxInstances: 100
+
+env:
+  - variable: DEEPSEEK_API_KEY
+    secret: deepseek-api-key
+
+  - variable: PESAPAL_CONSUMER_KEY
+    secret: pesapal-consumer-key
+
+  - variable: PESAPAL_CONSUMER_SECRET
+    secret: pesapal-consumer-secret
+
+  - variable: PESAPAL_BASE_URL
+    value: https://pay.pesapal.com/v3
+
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://your-app.web.app
+
+  - variable: FIREBASE_CLIENT_EMAIL
+    secret: firebase-client-email
+
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: firebase-private-key
