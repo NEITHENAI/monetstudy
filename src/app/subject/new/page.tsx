@@ -48,8 +48,15 @@ async function extractFileText(file: File): Promise<string> {
   const n = file.name.toLowerCase();
   if (n.endsWith('.pdf'))            return extractPDF(file);
   if (n.endsWith('.docx'))           return extractDocx(file);
+  if (n.endsWith('.pptx')) {
+    const { extractPPTX } = await import('@/lib/extractPPTX');
+    return extractPPTX(file);
+  }
+  if (n.endsWith('.ppt')) {
+    throw new Error('Old .ppt format is not supported. Please convert to .pptx first.');
+  }
   if (n.endsWith('.txt') || n.endsWith('.md')) return extractTxt(file);
-  throw new Error(`Unsupported file type. Use PDF, .docx, or .txt`);
+  throw new Error(`Unsupported file type. Use PDF, .docx, .pptx, or .txt`);
 }
 
 // ─── PAGE ─────────────────────────────────────────────────────────
@@ -299,7 +306,7 @@ export default function NewSubjectPage() {
               {[
                 { id: 'paste',    icon: '✎',  label: 'Paste text' },
                 { id: 'pdf',      icon: '📄',  label: 'Upload PDF' },
-                { id: 'file',     icon: '📝',  label: '.txt / .docx' },
+                { id: 'file',     icon: '📝',  label: '.txt / doc / ppt' },
                 { id: 'describe', icon: '✦',  label: 'Request course', pro: true },
               ].map(t => (
                 <button key={t.id}
@@ -329,7 +336,7 @@ export default function NewSubjectPage() {
             {isFileInput && (
               <>
                 <input ref={fileInputRef} type="file"
-                  accept={inputType === 'pdf' ? '.pdf' : '.txt,.docx,.md'}
+                  accept={inputType === 'pdf' ? '.pdf' : '.txt,.docx,.md,.pptx'}
                   onChange={handleFileInput}
                   style={{ display: 'none' }} />
 
@@ -343,7 +350,7 @@ export default function NewSubjectPage() {
                     <>
                       <div style={{ fontSize: 30, opacity: 0.35, marginBottom: 8 }}>⬆</div>
                       <div style={{ color: T.textSub, fontSize: 14, fontFamily: F.sans, marginBottom: 4 }}>
-                        Drop your {inputType === 'pdf' ? 'PDF' : '.txt or .docx'} here
+                        Drop your {inputType === 'pdf' ? 'PDF' : '.txt, .docx, or .pptx'} here
                       </div>
                       <div style={{ color: T.muted, fontSize: 12, fontFamily: F.sans }}>or tap to browse</div>
                     </>
