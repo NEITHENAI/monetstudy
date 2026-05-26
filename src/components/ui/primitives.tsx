@@ -9,7 +9,7 @@ export const F = {
 export function MonoLabel({ children, color, size = 10 }: { children: React.ReactNode; color?: string; size?: number }) {
   const { theme: T } = useTheme();
   return (
-    <span style={{ fontFamily: F.mono, fontSize: size, letterSpacing: '2px', textTransform: 'uppercase', color: color ?? T.muted }}>
+    <span style={{ fontFamily: F.mono, fontSize: size, letterSpacing: '2.5px', textTransform: 'uppercase', color: color ?? T.muted, fontWeight: 500 }}>
       {children}
     </span>
   );
@@ -19,17 +19,29 @@ export function Tag({ children, color }: { children: React.ReactNode; color?: st
   const { theme: T } = useTheme();
   const c = color ?? T.teal;
   return (
-    <span style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', color: c, background: `${c}18`, padding: '3px 10px', borderRadius: 20, display: 'inline-block', whiteSpace: 'nowrap' }}>
+    <span style={{
+      fontFamily: F.mono, fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase',
+      color: c, background: `${c}14`, padding: '4px 12px', borderRadius: 20,
+      display: 'inline-block', whiteSpace: 'nowrap', border: `1px solid ${c}22`,
+      fontWeight: 500,
+    }}>
       {children}
     </span>
   );
 }
 
-export function ProgressBar({ value, height = 5 }: { value: number; height?: number }) {
+export function ProgressBar({ value, height = 6 }: { value: number; height?: number }) {
   const { theme: T } = useTheme();
   return (
-    <div style={{ background: T.dim, borderRadius: 99, overflow: 'hidden', height }}>
-      <div style={{ width: `${Math.min(100, value ?? 0)}%`, height: '100%', background: T.teal, borderRadius: 99, boxShadow: `0 0 10px ${T.tealGlow}`, transition: 'width 0.7s cubic-bezier(.4,0,.2,1)' }} />
+    <div style={{ background: T.dim, borderRadius: 99, overflow: 'hidden', height, position: 'relative' }}>
+      <div style={{
+        width: `${Math.min(100, value ?? 0)}%`, height: '100%',
+        background: `linear-gradient(90deg, ${T.teal}, ${T.violet})`,
+        borderRadius: 99,
+        boxShadow: `0 0 14px ${T.tealGlow}`,
+        transition: 'width 0.7s cubic-bezier(.4,0,.2,1)',
+        position: 'relative',
+      }} />
     </div>
   );
 }
@@ -45,14 +57,44 @@ interface BtnProps {
 export function Btn({ children, onClick, variant = 'primary', disabled, style: s = {}, type = 'button' }: BtnProps) {
   const { theme: T } = useTheme();
   const variants: Record<string, React.CSSProperties> = {
-    primary: { background: T.teal, color: T.btnText, border: 'none', boxShadow: `0 4px 20px ${T.tealGlow}` },
-    ghost:   { background: T.card2, color: T.text, border: `1px solid ${T.border}` },
-    violet:  { background: T.violet, color: '#fff', border: 'none', boxShadow: '0 4px 20px rgba(139,108,247,0.2)' },
-    outline: { background: 'transparent', color: T.teal, border: `1px solid ${T.borderMid}` },
-    danger:  { background: T.redDim, color: T.red, border: `1px solid ${T.red}22` },
+    primary: {
+      background: `linear-gradient(135deg, ${T.teal}, ${T.violet})`,
+      color: '#ffffff', border: 'none',
+      boxShadow: `0 4px 24px ${T.tealGlow}`,
+    },
+    ghost: {
+      background: T.card2, color: T.text,
+      border: `1px solid ${T.border}`,
+    },
+    violet: {
+      background: `linear-gradient(135deg, ${T.violet}, #ec4899)`,
+      color: '#ffffff', border: 'none',
+      boxShadow: '0 4px 24px rgba(192,132,252,0.2)',
+    },
+    outline: {
+      background: 'transparent', color: T.teal,
+      border: `1px solid ${T.borderMid}`,
+    },
+    danger: {
+      background: T.redDim, color: T.red,
+      border: `1px solid ${T.red}22`,
+    },
   };
   return (
-    <button type={type} onClick={onClick} disabled={disabled} style={{ ...variants[variant], padding: '12px 22px', borderRadius: 10, fontSize: 14, fontWeight: 600, transition: 'all 0.2s', opacity: disabled ? 0.38 : 1, cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F.sans, ...s }}>
+    <button type={type} onClick={onClick} disabled={disabled}
+      style={{
+        ...variants[variant],
+        padding: '12px 24px', borderRadius: 12, fontSize: 14, fontWeight: 600,
+        transition: 'all 0.25s cubic-bezier(.22,1,.36,1)',
+        opacity: disabled ? 0.38 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        fontFamily: F.sans, letterSpacing: '0.2px',
+        ...s,
+      }}
+      onMouseEnter={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.1)'; } }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1)'; }}
+    >
       {children}
     </button>
   );
@@ -60,7 +102,7 @@ export function Btn({ children, onClick, variant = 'primary', disabled, style: s
 
 export function Spinner({ size = 28 }: { size?: number }) {
   const { theme: T } = useTheme();
-  return <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${T.border}`, borderTop: `2px solid ${T.teal}`, animation: 'spin 1s linear infinite' }} />;
+  return <div style={{ width: size, height: size, borderRadius: '50%', border: `2px solid ${T.border}`, borderTop: `2px solid ${T.teal}`, animation: 'spin 0.8s linear infinite' }} />;
 }
 
 // SVG Icons

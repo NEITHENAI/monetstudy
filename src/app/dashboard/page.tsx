@@ -10,6 +10,7 @@ import { MonoLabel, Tag, ProgressBar, Btn, Spinner, Logo, IconSearch, F } from '
 import type { Subject, PublicCourse } from '@/types';
 import OnboardingSplash from '@/components/OnboardingSplash';
 import { canCreateSubject, getPlanById } from '@/lib/plans';
+import { Footer } from '@/components/layout/Footer';
 
 
 
@@ -160,6 +161,9 @@ export default function DashboardPage() {
               })}
             </div>
           )}
+          <div style={{ marginTop: 24 }}>
+            <Footer />
+          </div>
         </div>
       )}
 
@@ -241,6 +245,9 @@ export default function DashboardPage() {
               <div style={{ fontSize: 13, color: T.textSub, marginBottom: 14, fontFamily: F.sans }}>Any course you generate can be made public for others to enrol.</div>
               <Tag color={T.teal}>Go to a subject → ··· → Make Public</Tag>
             </div>
+            <div style={{ marginTop: 24 }}>
+              <Footer />
+            </div>
           </div>
         </div>
       )}
@@ -272,6 +279,9 @@ export default function DashboardPage() {
               <Btn variant="violet" onClick={() => router.push('/upgrade')} style={{ width: '100%', padding: '13px' }}>Upgrade ✦</Btn>
             )}
             <Btn variant="ghost" onClick={handleSignOut} style={{ width: '100%', padding: '13px' }}>Sign Out</Btn>
+          </div>
+          <div style={{ marginTop: 24 }}>
+            <Footer />
           </div>
         </div>
       )}

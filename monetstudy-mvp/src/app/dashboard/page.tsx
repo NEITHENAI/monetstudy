@@ -9,6 +9,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { MonoLabel, Tag, ProgressBar, Btn, Spinner, Logo, IconSearch, F } from '@/components/ui/primitives';
 import type { Subject, PublicCourse } from '@/types';
 import { canCreateSubject, getPlanById } from '@/lib/plans';
+import { Footer } from '@/components/layout/Footer';
 
 const COMMUNITY_COURSES: PublicCourse[] = [
   { id: 'c1', name: 'Biology A-Level — Full Syllabus', authorName: 'Aisha K.', authorInitial: 'A', topicCount: 12, enrolled: 847, rating: 4.8, tags: ['Science', 'A-Level'], preview: 'Covers all AQA Biology units from cell structure to ecosystems with full assessments.' },
@@ -129,6 +130,9 @@ export default function DashboardPage() {
               })}
             </div>
           )}
+          <div style={{ marginTop: 24 }}>
+            <Footer />
+          </div>
         </div>
       )}
 
@@ -199,6 +203,9 @@ export default function DashboardPage() {
               <div style={{ fontSize: 13, color: T.textSub, marginBottom: 14, fontFamily: F.sans }}>Any course you generate can be made public for others to enrol.</div>
               <Tag color={T.teal}>Go to a subject → ··· → Make Public</Tag>
             </div>
+            <div style={{ marginTop: 24 }}>
+              <Footer />
+            </div>
           </div>
         </div>
       )}
@@ -230,6 +237,9 @@ export default function DashboardPage() {
               <Btn variant="violet" onClick={() => router.push('/upgrade')} style={{ width: '100%', padding: '13px' }}>Upgrade ✦</Btn>
             )}
             <Btn variant="ghost" onClick={handleSignOut} style={{ width: '100%', padding: '13px' }}>Sign Out</Btn>
+          </div>
+          <div style={{ marginTop: 24 }}>
+            <Footer />
           </div>
         </div>
       )}

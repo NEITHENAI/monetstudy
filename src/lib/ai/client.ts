@@ -204,10 +204,10 @@ export async function generateCourse(params: {
   const isPremiumImages = params.userPlan === 'scholar' || params.userPlan === 'unlimited';
 
   const paceGuide = params.pace === 'Compact'
-    ? 'Focus on the most essential topics. Keep it brief.'
+    ? 'Focus on the most essential topics. Keep it brief. Do not artificially limit the number of topics if the content demands it.'
     : params.pace === 'Thorough'
-    ? 'Cover all important concepts thoroughly. Maximum 12 topics.'
-    : 'Cover important topics with a good balance. Maximum 10 topics.';
+    ? 'Cover all important concepts thoroughly. Create as many topics as necessary to cover the entire text.'
+    : 'Cover important topics with a good balance. Do not limit the topic count, create a comprehensive outline.';
 
   let fullMaterial = params.material;
   if (params.materialUrl) {
@@ -250,7 +250,7 @@ export async function generateCourse(params: {
     },
     {
       role: 'user',
-      content: `Create a course outline for: ${fullMaterial.slice(0, 6000)}
+      content: `Create a course outline for: ${fullMaterial.slice(0, 100000)}
 Style: ${params.style}, Depth: ${params.depth}, Goal: ${params.goal}. ${paceGuide}
 ${params.customInstructions ? `\nADDITIONAL USER INSTRUCTIONS (prioritise these):\n${params.customInstructions}\n` : ''}
 Respond with ONLY this JSON structure:
@@ -272,7 +272,7 @@ Respond with ONLY this JSON structure:
   // 3. Generate Topics Sequentially with "Textbook Design"
   const topicContents: string[] = [];
   for (const t of outline.topics) {
-    let sourceContext = fullMaterial.slice(0, 5000); // default
+    let sourceContext = fullMaterial; // use full material unless massive
     if (isMassive) {
       console.log(`[AI Client] RAG executing for topic: ${t.title}`);
       const relevantChunks = await retrieveRelevantChunks(t.title, docChunks, docEmbeddings, 5);
@@ -388,16 +388,16 @@ export async function generateQuestions(
     {
       role: 'user',
       content: `Generate ${count} quiz questions for: ${topicTitle}
-Content: ${topicContent.slice(0, 2000)}
+Content: ${topicContent.slice(0, 4000)}
 
-Respond with ONLY this JSON array structure:
+Respond with ONLY this JSON array structure. Make sure "correctAnswer" contains the EXACT STRING TEXT of the correct option, not just "A" or "B":
 [
   {
     "id": "qX",
     "type": "mcq",
     "question": "...",
-    "options": ["A", "B", "C", "D"],
-    "correctAnswer": "A",
+    "options": ["First option", "Second option", "Third option", "Fourth option"],
+    "correctAnswer": "First option",
     "explanation": "..."
   }
 ]`,
@@ -412,7 +412,6 @@ Respond with ONLY this JSON array structure:
   }
 }
 
-// ─── MOCK EXAM ─────────────────────────────────────────────────────
 export async function generateMockExam(params: {
   subjectContent: string;
   curriculumSpec: string;
@@ -429,9 +428,19 @@ export async function generateMockExam(params: {
       role: 'user',
       content: `Generate a ${params.duration}-minute exam (${count} questions).
 Spec: ${params.curriculumSpec}
-Content: ${params.subjectContent.slice(0, 4000)}
+Content: ${params.subjectContent.slice(0, 6000)}
 
-Format: JSON array of questions.`,
+Format: JSON array of questions. Make sure "correctAnswer" contains the EXACT STRING TEXT of the correct option, not just a letter. Example:
+[
+  {
+    "id": "q1",
+    "type": "mcq",
+    "question": "What is...",
+    "options": ["Alpha", "Beta", "Gamma", "Delta"],
+    "correctAnswer": "Alpha",
+    "explanation": "..."
+  }
+]`,
     },
   ], 0.4);
 

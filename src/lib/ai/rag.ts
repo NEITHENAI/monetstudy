@@ -45,8 +45,8 @@ export async function batchEmbed(chunks: string[]): Promise<number[][]> {
   const geminiKey = process.env.GEMINI_API_KEY || 'AIzaSyDb0Io4DWYrFOwJ3vZw8RFM1L4C3RdRPq8';
   const embeddings: number[][] = [];
   
-  // Batch in groups of 100 as per Gemini limits
-  const BATCH_SIZE = 100;
+  // Batch in groups of 25 to prevent payload limits and 429s on Gemini API
+  const BATCH_SIZE = 25;
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const batch = chunks.slice(i, i + BATCH_SIZE);
     try {
