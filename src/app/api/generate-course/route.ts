@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCourse } from '@/lib/ai/client';
 
-export const maxDuration = 600; // 10 minutes for large course generation
+export const maxDuration = 300; // 5 minutes (Vercel hobby plan max)
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
