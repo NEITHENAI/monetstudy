@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCourse } from '@/lib/ai/client';
 
+export const maxDuration = 600; // 10 minutes for large course generation
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

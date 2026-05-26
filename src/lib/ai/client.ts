@@ -71,29 +71,48 @@ async function callGemini(messages: Message[], temperature = 0.7, retries = 3): 
   return '';
 }
 
-async function callDeepSeek(messages: any[], temperature = 0.7): Promise<string> {
-  const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${DEEPSEEK_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      messages,
-      temperature,
-      max_tokens: 4096,
-    }),
-  });
+async function callDeepSeek(messages: any[], temperature = 0.7, retries = 3): Promise<string> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEEPSEEK_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages,
+          temperature,
+          max_tokens: 4096,
+        }),
+      });
 
-  if (!res.ok) {
-    const err = await res.text();
-    console.warn('[DeepSeek] Failed, falling back to Pollinations...', err);
-    return callGemini(messages, temperature);
+      if (res.status === 429) {
+        console.warn(`[DeepSeek] Rate limited (429), retry ${attempt + 1}/${retries}...`);
+        await delay(3000 * (attempt + 1));
+        continue;
+      }
+
+      if (!res.ok) {
+        const err = await res.text();
+        console.warn(`[DeepSeek] HTTP ${res.status}, retry ${attempt + 1}/${retries}:`, err);
+        await delay(2000 * (attempt + 1));
+        continue;
+      }
+
+      const data = await res.json();
+      return data?.choices?.[0]?.message?.content || '';
+    } catch (e) {
+      console.warn(`[DeepSeek] Network error, retry ${attempt + 1}/${retries}:`, e);
+      if (attempt < retries) {
+        await delay(2000 * (attempt + 1));
+        continue;
+      }
+    }
   }
-
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content || '';
+  console.error('[DeepSeek] All retries exhausted. Falling back to Pollinations...');
+  return callGemini(messages, temperature);
 }
 
 // ─── IMAGE GENERATION (Gemini 2.5 Flash) ───────────────────────────
@@ -269,18 +288,24 @@ Respond with ONLY this JSON structure:
     throw new Error('Failed to parse course outline');
   }
 
-  // 3. Generate Topics Sequentially with "Textbook Design"
+  // 3. Generate Topics in Parallel Batches (to prevent timeouts)
   const topicContents: string[] = [];
-  for (const t of outline.topics) {
-    let sourceContext = fullMaterial; // use full material unless massive
-    if (isMassive) {
-      console.log(`[AI Client] RAG executing for topic: ${t.title}`);
-      const relevantChunks = await retrieveRelevantChunks(t.title, docChunks, docEmbeddings, 5);
-      sourceContext = relevantChunks.join('\n\n...\n\n');
-    }
+  const CONCURRENCY = 5; // Generate 5 topics at a time
 
-    // 3a. Synthesize the Lesson (text only — use a generic placeholder)
-    const instructionalText = `Write a premium, textbook-quality lesson for: "${t.title}"
+  for (let i = 0; i < outline.topics.length; i += CONCURRENCY) {
+    const batch = outline.topics.slice(i, i + CONCURRENCY);
+    console.log(`[AI Client] Generating batch of ${batch.length} topics...`);
+    
+    const batchResults = await Promise.all(batch.map(async (t) => {
+      let sourceContext = fullMaterial; // use full material unless massive
+      if (isMassive) {
+        console.log(`[AI Client] RAG executing for topic: ${t.title}`);
+        const relevantChunks = await retrieveRelevantChunks(t.title, docChunks, docEmbeddings, 5);
+        sourceContext = relevantChunks.join('\n\n...\n\n');
+      }
+
+      // 3a. Synthesize the Lesson
+      const instructionalText = `Write a premium, textbook-quality lesson for: "${t.title}"
 
 SOURCE MATERIAL:
 ${sourceContext}
@@ -295,64 +320,59 @@ INSTRUCTIONS:
 
 Start directly with # ${t.title}.`;
 
-    const contentRaw = await callDeepSeek([
-      {
-        role: 'system',
-        content: `You are a world-class academic author. Respond ONLY with the markdown lesson. No preambles.`,
-      },
-      {
-        role: 'user',
-        content: instructionalText,
-      },
-    ]);
-    const content = cleanMarkdown(contentRaw);
-
-    let finalContent = content;
-
-    if (isPremiumImages) {
-      // 3b. Design the perfect matching illustration based on the GENERATED lesson
-      const illustrationDesignRaw = await callDeepSeek([
+      const contentRaw = await callDeepSeek([
         {
           role: 'system',
-          content: 'You design image prompts for an AI graphic designer. Respond with ONLY a short description of the core visual concept from the text, maximum 15 words. No quotes, no punctuation. Focus on specific visual elements.',
+          content: `You are a world-class academic author. Respond ONLY with the markdown lesson. No preambles.`,
         },
         {
           role: 'user',
-          content: `Read this lesson and design a 15-word image prompt for a flat-design textbook diagram that perfectly illustrates its core concept:\n\n${content.slice(0, 2000)}`,
+          content: instructionalText,
         },
-      ], 0.3);
-      const cleanPrompt = illustrationDesignRaw.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+      ]);
+      const content = cleanMarkdown(contentRaw);
 
-      // 3c. Generate the actual image with Gemini
-      const illustrationUrl = await generateImage(cleanPrompt);
+      let finalContent = content;
 
-      // 3d. Replace the placeholder with the real image
-      finalContent = content.replace(
-        /!\[([^\]]*)\]\[ILLUSTRATION\]/g,
-        `![$1](${illustrationUrl})`
-      );
-      finalContent = finalContent.replace(
-        /!\[([^\]]*)\]\(ILLUSTRATION\)/g,
-        `![$1](${illustrationUrl})`
-      );
-      finalContent = finalContent.replace(
-        /!\[([^\]]*)\]\(ILLUSTRATION\)/g,
-        `![$1](${illustrationUrl})`
-      );
-    } else {
-      // Free/Starter: remove illustration placeholders and add upgrade note
-      finalContent = content.replace(
-        /!\[([^\]]*)\]\[ILLUSTRATION\]/g,
-        '> ✦ *AI-generated illustration available on Scholar & Unlimited plans. [Upgrade →](/upgrade)*'
-      );
-      finalContent = finalContent.replace(
-        /!\[([^\]]*)\]\(ILLUSTRATION\)/g,
-        '> ✦ *AI-generated illustration available on Scholar & Unlimited plans. [Upgrade →](/upgrade)*'
-      );
-    }
+      if (isPremiumImages) {
+        const illustrationDesignRaw = await callDeepSeek([
+          {
+            role: 'system',
+            content: 'You design image prompts for an AI graphic designer. Respond with ONLY a short description of the core visual concept from the text, maximum 15 words. No quotes, no punctuation. Focus on specific visual elements.',
+          },
+          {
+            role: 'user',
+            content: `Read this lesson and design a 15-word image prompt for a flat-design textbook diagram that perfectly illustrates its core concept:\n\n${content.slice(0, 2000)}`,
+          },
+        ], 0.3);
+        const cleanPrompt = illustrationDesignRaw.replace(/[^a-zA-Z0-9\s]/g, '').trim();
 
-    topicContents.push(finalContent);
-    await delay(500);
+        const illustrationUrl = await generateImage(cleanPrompt);
+
+        finalContent = content.replace(
+          /!\[([^\]]*)\]\[ILLUSTRATION\]/g,
+          `![$1](${illustrationUrl})`
+        );
+        finalContent = finalContent.replace(
+          /!\[([^\]]*)\]\(ILLUSTRATION\)/g,
+          `![$1](${illustrationUrl})`
+        );
+      } else {
+        finalContent = content.replace(
+          /!\[([^\]]*)\]\[ILLUSTRATION\]/g,
+          '> ✦ *AI-generated illustration available on Scholar & Unlimited plans. [Upgrade →](/upgrade)*'
+        );
+        finalContent = finalContent.replace(
+          /!\[([^\]]*)\]\(ILLUSTRATION\)/g,
+          '> ✦ *AI-generated illustration available on Scholar & Unlimited plans. [Upgrade →](/upgrade)*'
+        );
+      }
+
+      return finalContent;
+    }));
+
+    topicContents.push(...batchResults);
+    await delay(1000); // give the API a tiny breather between batches
   }
 
   return {

@@ -21,53 +21,93 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-export async function getEmbedding(text: string): Promise<number[]> {
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+export async function getEmbedding(text: string, retries = 3): Promise<number[]> {
   const geminiKey = process.env.GEMINI_API_KEY || 'AIzaSyDb0Io4DWYrFOwJ3vZw8RFM1L4C3RdRPq8';
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'models/text-embedding-004',
-        content: { parts: [{ text }] },
-      }),
-    });
-    if (!res.ok) throw new Error('Failed to get embedding');
-    const data = await res.json();
-    return data.embedding.values;
-  } catch (e) {
-    console.error('Embedding error:', e);
-    return [];
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'models/text-embedding-004',
+          content: { parts: [{ text }] },
+        }),
+      });
+      if (res.status === 429) {
+        console.warn(`[Embedding] Rate limited (429), retry ${attempt + 1}/${retries}...`);
+        await delay(3000 * (attempt + 1)); // 3s, 6s, 9s backoff
+        continue;
+      }
+      if (!res.ok) throw new Error(`Embedding failed: ${res.status}`);
+      const data = await res.json();
+      return data.embedding.values;
+    } catch (e) {
+      if (attempt < retries) {
+        console.warn(`[Embedding] Attempt ${attempt + 1} failed, retrying...`);
+        await delay(2000 * (attempt + 1));
+        continue;
+      }
+      console.error('[Embedding] All retries exhausted:', e);
+      return [];
+    }
   }
+  return [];
 }
 
 export async function batchEmbed(chunks: string[]): Promise<number[][]> {
   const geminiKey = process.env.GEMINI_API_KEY || 'AIzaSyDb0Io4DWYrFOwJ3vZw8RFM1L4C3RdRPq8';
   const embeddings: number[][] = [];
   
-  // Batch in groups of 25 to prevent payload limits and 429s on Gemini API
-  const BATCH_SIZE = 25;
+  // Batch in groups of 10 to stay well within rate limits
+  const BATCH_SIZE = 10;
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const batch = chunks.slice(i, i + BATCH_SIZE);
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:batchEmbedContents?key=${geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requests: batch.map(text => ({
-            model: 'models/text-embedding-004',
-            content: { parts: [{ text }] },
-          })),
-        }),
-      });
-      if (!res.ok) throw new Error('Batch embedding failed');
-      const data = await res.json();
-      embeddings.push(...data.embeddings.map((e: any) => e.values));
-    } catch (e) {
-      console.error('Batch embedding error:', e);
-      // Fallback: fill with empty arrays to keep length matched
+    let success = false;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:batchEmbedContents?key=${geminiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requests: batch.map(text => ({
+              model: 'models/text-embedding-004',
+              content: { parts: [{ text }] },
+            })),
+          }),
+        });
+
+        if (res.status === 429) {
+          console.warn(`[BatchEmbed] Rate limited (429) on batch ${i / BATCH_SIZE + 1}, retry ${attempt + 1}...`);
+          await delay(5000 * (attempt + 1)); // 5s, 10s, 15s backoff
+          continue;
+        }
+
+        if (!res.ok) {
+          console.warn(`[BatchEmbed] HTTP ${res.status} on batch ${i / BATCH_SIZE + 1}, retry ${attempt + 1}...`);
+          await delay(3000 * (attempt + 1));
+          continue;
+        }
+
+        const data = await res.json();
+        embeddings.push(...data.embeddings.map((e: any) => e.values));
+        success = true;
+        break;
+      } catch (e) {
+        console.warn(`[BatchEmbed] Error on batch ${i / BATCH_SIZE + 1}, retry ${attempt + 1}:`, e);
+        await delay(3000 * (attempt + 1));
+      }
+    }
+
+    if (!success) {
+      console.error(`[BatchEmbed] All retries failed for batch ${i / BATCH_SIZE + 1}, filling with empty vectors`);
       embeddings.push(...Array(batch.length).fill([]));
     }
+
+    // Add a small delay between successful batches to avoid triggering rate limits
+    await delay(1500);
   }
   return embeddings;
 }
