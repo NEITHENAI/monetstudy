@@ -53,11 +53,12 @@ interface BtnProps {
   variant?: 'primary' | 'ghost' | 'caramel' | 'outline' | 'danger' | 'violet';
   disabled?: boolean;
   style?: React.CSSProperties;
+  className?: string;
   type?: 'button' | 'submit';
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function Btn({ children, onClick, variant = 'primary', disabled, style: s = {}, type = 'button', size = 'md' }: BtnProps) {
+export function Btn({ children, onClick, variant = 'primary', disabled, style: s = {}, className, type = 'button', size = 'md' }: BtnProps) {
   const { theme: T } = useTheme();
 
   const paddings = {
@@ -109,7 +110,7 @@ export function Btn({ children, onClick, variant = 'primary', disabled, style: s
   };
 
   return (
-    <button type={type} onClick={onClick} disabled={disabled}
+    <button type={type} onClick={onClick} disabled={disabled} className={className}
       style={{
         ...variants[variant],
         padding: paddings[size],

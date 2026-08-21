@@ -45,6 +45,8 @@ export default function CoursePage() {
         progress: 65,
         topicCount: 5,
         userId: user.uid,
+        isPublic: false,
+        preferences: { style: 'Conceptual', depth: 'Intermediate', goal: 'Exam Prep', pace: 'Balanced' },
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });

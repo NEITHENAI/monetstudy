@@ -16,6 +16,8 @@ export interface UserProfile {
   subjectLimit: number; // 1 = free, 3 = starter, 10 = scholar, -1 = unlimited
   theme: ThemeName;
   createdAt: number;
+  updatedAt?: number;
+  onboarded?: boolean;
 }
 
 export interface CoursePreferences {
@@ -55,8 +57,8 @@ export interface Subject {
   status: SubjectStatus;
   progress: number;
   topicCount: number;
-  preferences: CoursePreferences;
-  isPublic: boolean;
+  preferences?: Partial<CoursePreferences>;
+  isPublic?: boolean;
   pageImageUrls?: Record<number, string>;
   createdAt: number;
   updatedAt: number;

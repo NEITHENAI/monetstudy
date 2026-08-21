@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { getTopics, updateTopic, updateSubject } from '@/lib/firebase/firestore';
-import { MonoLabel, Tag, Btn, Spinner, F } from '@/components/ui/primitives';
+import { MonoLabel, Tag, Btn, Spinner, ProgressBar, F } from '@/components/ui/primitives';
 import type { Topic, Question } from '@/types';
 import ReactMarkdown from 'react-markdown';
 import { getConceptImageUrl } from '@/lib/extractPDFImages';
