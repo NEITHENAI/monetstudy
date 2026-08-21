@@ -226,9 +226,6 @@ export async function generateCourse(params: {
   customInstructions?: string;
   userPlan?: string;
 }): Promise<GeneratedCourse> {
-
-  const isPremiumImages = params.userPlan === 'scholar' || params.userPlan === 'unlimited';
-
   const paceGuide = params.pace === 'Compact'
     ? 'Focus on the most essential topics. Keep it brief. Do not artificially limit the number of topics if the content demands it.'
     : params.pace === 'Thorough'

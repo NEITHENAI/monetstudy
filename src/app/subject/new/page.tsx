@@ -351,24 +351,20 @@ export default function NewSubjectPage() {
                 { id: 'paste',    icon: '✎',  label: 'Paste text' },
                 { id: 'pdf',      icon: '📄',  label: 'Upload PDF' },
                 { id: 'file',     icon: '📝',  label: '.txt / doc / ppt' },
-                { id: 'describe', icon: '✦',  label: 'Describe topic', pro: true },
+                { id: 'describe', icon: '✦',  label: 'Describe topic' },
               ].map(t => (
                 <button key={t.id}
-                  onClick={() => !(t.pro && profile?.plan === 'free') && switchInputType(t.id)}
+                  onClick={() => switchInputType(t.id)}
                   style={{
                     padding: '20px 14px',
                     background: inputType === t.id ? (T.name === 'dark' || T.name === 'midnight' ? '#2F231C' : '#FAF3EB') : T.card2,
                     border: `1.5px solid ${inputType === t.id ? T.teal : T.border}`,
                     borderRadius: 22, textAlign: 'center',
-                    opacity: t.pro && profile?.plan === 'free' ? 0.45 : 1,
-                    cursor: t.pro && profile?.plan === 'free' ? 'not-allowed' : 'pointer',
+                    cursor: 'pointer',
                     transition: 'all 0.2s', position: 'relative',
                   }}>
                   <div style={{ fontSize: 26, marginBottom: 6 }}>{t.icon}</div>
                   <div style={{ fontSize: 13, color: inputType === t.id ? T.teal : T.text, fontWeight: 800, fontFamily: F.sans }}>{t.label}</div>
-                  {t.pro && (
-                    <div style={{ position: 'absolute', top: 8, right: 8, background: `${T.violet}18`, color: T.violet, fontSize: 9, fontFamily: F.sans, fontWeight: 800, padding: '2px 8px', borderRadius: 999 }}>PRO</div>
-                  )}
                 </button>
               ))}
             </div>
