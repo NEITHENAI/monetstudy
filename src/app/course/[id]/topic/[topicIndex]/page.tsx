@@ -283,8 +283,12 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
       return `\n\n![Figure ${num}](figure:${num})\n\n`;
     });
 
-    // Normalize un-fenced SVG: e.g. "svg <svg ... </svg>" or isolated "<svg ... </svg>"
-    content = content.replace(/(?:\n|^)\s*(?:svg\s*)?(<svg[\s\S]*?<\/svg>)(?!\s*```)/gi, '\n\n```svg\n$1\n```\n\n');
+    // Normalize un-fenced SVG: handles complete "<svg...></svg>" and auto-closes truncated "<svg..."
+    content = content.replace(/(?:\n|^)\s*(?:svg\s*)?(<svg[\s\S]*?)(?:<\/svg>|(?=\n\n\s*#{1,6}|\n\n\s*[A-Z0-9]|\Z))/gi, (match, svgBody) => {
+      if (match.includes('```')) return match;
+      const clean = svgBody.includes('</svg>') ? svgBody.trim() : `${svgBody.trim()}</svg>`;
+      return `\n\n\`\`\`svg\n${clean}\n\`\`\`\n\n`;
+    });
 
     // Normalize un-fenced Mermaid ONLY when explicitly marked with `mermaid\n` or `mermaid graph/flowchart` (terminate strictly at blank line)
     content = content.replace(/(?:\n|^)\s*mermaid\s*\n?((?:graph|flowchart|sequenceDiagram|stateDiagram)[\s\S]*?)(?=(?:\n\s*\n|\Z))/gi, '\n\n```mermaid\n$1\n```\n\n');

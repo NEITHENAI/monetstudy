@@ -267,6 +267,9 @@ export function SvgIllustration({ svgCode, alt }: { svgCode: string; alt?: strin
     const match = /(<svg[\s\S]*?<\/svg>)/i.exec(code);
     if (match) {
       code = match[1];
+    } else if (code.includes('<svg')) {
+      // Auto-close if truncated
+      code = code.substring(code.indexOf('<svg')) + '</svg>';
     }
 
     // Ensure responsive attributes

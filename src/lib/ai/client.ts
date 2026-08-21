@@ -15,7 +15,15 @@ interface Message {
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 function cleanMarkdown(raw: string): string {
-  let content = raw.replace(/```markdown|```/g, '').trim();
+  let content = (raw || '').trim();
+  
+  // Strip outer ```markdown ... ``` wrapper only if the model wrapped the entire response
+  if (content.startsWith('```markdown') && content.endsWith('```')) {
+    content = content.replace(/^```markdown\s*/i, '').replace(/\s*```$/, '').trim();
+  } else if (content.startsWith('```') && content.endsWith('```') && !content.startsWith('```mermaid') && !content.startsWith('```svg')) {
+    content = content.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '').trim();
+  }
+
   // Strip <think> blocks
   content = content.replace(/<think>[\s\S]*?<\/think>/gi, '');
   // Strip --- SECTION --- headers and their content blocks (instruction leakage)
@@ -45,7 +53,7 @@ async function callGemini(messages: Message[], temperature = 0.7, retries = 3): 
       const res = await fetch(`${POLLINATIONS_BASE}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'openai', messages, temperature, max_tokens: 4096 }),
+        body: JSON.stringify({ model: 'openai', messages, temperature, max_tokens: 8192 }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -84,7 +92,7 @@ async function callDeepSeek(messages: any[], temperature = 0.7, retries = 3): Pr
           model: 'deepseek-chat',
           messages,
           temperature,
-          max_tokens: 4096,
+          max_tokens: 8192,
         }),
       });
 
@@ -349,8 +357,8 @@ Respond with ONLY valid JSON with this exact structure:
         sourceContext = relevantChunks.join('\n\n...\n\n');
       }
 
-      // 3a. Synthesize the Lesson with Mermaid diagrams & SVG illustrations
-      const instructionalText = `Write a premium, textbook-quality lesson for: "${t.title}"
+      // 3a. Synthesize the Lesson with high-impact Mermaid & SVG diagrams
+      const instructionalText = `Write a premium, comprehensive textbook lesson for: "${t.title}"
 
 SOURCE MATERIAL:
 ${sourceContext}
@@ -358,16 +366,25 @@ ${sourceContext}
 ${pageAnalyses ? `VISUAL CONTEXT FROM PDF:\n${pageAnalyses}` : ''}
 ${params.customInstructions ? `\nUSER'S PERSONALISATION NOTES (follow these closely):\n${params.customInstructions}\n` : ''}
 INSTRUCTIONS:
-1. TONE & DEPTH: High-end academic textbook. Clear, comprehensive, and engaging. Use # Title, ## Sections, ### Subsections. Bold key terms. 500-900 words.
+1. TONE & DEPTH: University textbook quality. Clear, deeply explanatory, and engaging. Use # Title, ## Sections, ### Subsections. Bold key concepts. 600-1000 words.
 2. VISUAL DIAGRAMS & ILLUSTRATIONS (MANDATORY):
-   Include at least ONE visual visual aid embedded directly in the lesson:
-   - OPTION A: Use a \`\`\`mermaid diagram block for workflows, step-by-step processes, cycles, timelines, decision trees, hierarchy trees, or cause-and-effect relationships (e.g. graph TD, graph LR, sequenceDiagram, stateDiagram-v2).
-   - OPTION B: Use a \`\`\`svg block with a standalone <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">...</svg> for anatomical cross-sections, geometric proofs, physics force diagrams, chemical molecules, mathematical curves, or conceptual infographics with high-contrast text labels.
-3. CRITICAL CODE FENCE SYNTAX:
-   - ALWAYS wrap Mermaid diagrams in triple backticks (\`\`\`mermaid ... \`\`\`).
-   - ALWAYS wrap SVG illustrations in triple backticks (\`\`\`svg <svg ...>...</svg> \`\`\`).
-   - NEVER output bare naked SVG tags or bare Mermaid text without triple backticks.
-4. After the visual block, describe what the student should observe.
+   Design and embed at least ONE rich, intelligent visual illustration that crystallizes the core concept:
+   - OPTION A: MERMAID DIAGRAM (\`\`\`mermaid ... \`\`\`)
+     Use for multi-stage workflows, biochemical/financial cycles, decision trees, timelines, or system hierarchies.
+     Format example:
+     \`\`\`mermaid
+     graph TD
+       A["Primary Input / Stimulus"] -->|Mechanism| B["Key Processing Unit"]
+       B --> C["Outcome Alpha"]
+       B --> D["Outcome Beta"]
+     \`\`\`
+   - OPTION B: STANDALONE SVG VECTOR ILLUSTRATION (\`\`\`svg <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">...</svg> \`\`\`)
+     Use for anatomical/cellular cross-sections, physics force vectors, technical charts, geometry proofs, or infographics.
+     Design tips: Clean rounded rectangles (rx="10"), clear color coding (#C27847, #2ecc71, #e74c3c, #1a237e), large readable text labels, and self-contained vector paths.
+3. CRITICAL CODE FENCE RULES:
+   - ALWAYS complete every SVG with its closing </svg> tag before finishing the code block.
+   - ALWAYS enclose diagrams in triple backticks (\`\`\`mermaid or \`\`\`svg).
+4. After the diagram, provide a 1-2 sentence observation note highlighting what the student should notice.
 
 Start directly with # ${t.title}.`;
 
