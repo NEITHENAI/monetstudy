@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — MonetStudy</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0e0f11;
+      --surface: #151618;
+      --border: #232428;
+      --text: #e8e6e1;
+      --muted: #7a7870;
+      --accent: #c9a84c;
+      --accent-dim: rgba(201,168,76,0.12);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      line-height: 1.75;
+      font-weight: 300;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 2rem 0;
+      position: sticky;
+      top: 0;
+      background: rgba(14,15,17,0.92);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .wordmark {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.2rem;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+      text-decoration: none;
+    }
+
+    .last-updated {
+      font-size: 0.78rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ── LAYOUT ── */
+    main {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 5rem 2rem 8rem;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      margin-bottom: 4.5rem;
+      padding-bottom: 3rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .eyebrow {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      line-height: 1.1;
+      color: var(--text);
+      margin-bottom: 1.5rem;
+      font-weight: 400;
+    }
+
+    h1 em {
+      color: var(--accent);
+      font-style: italic;
+    }
+
+    .hero-intro {
+      font-size: 1.05rem;
+      color: #a8a69f;
+      max-width: 580px;
+      line-height: 1.8;
+    }
+
+    /* ── TOC ── */
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.8rem 2rem;
+      margin-bottom: 4rem;
+    }
+
+    .toc-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    .toc ol {
+      list-style: none;
+      counter-reset: toc;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem 2rem;
+    }
+
+    @media (max-width: 560px) {
+      .toc ol { grid-template-columns: 1fr; }
+    }
+
+    .toc li {
+      counter-increment: toc;
+      font-size: 0.875rem;
+    }
+
+    .toc li::before {
+      content: counter(toc, decimal-leading-zero) ". ";
+      color: var(--accent);
+      font-weight: 500;
+      margin-right: 0.25rem;
+    }
+
+    .toc a {
+      color: var(--text);
+      text-decoration: none;
+      opacity: 0.75;
+      transition: opacity 0.2s, color 0.2s;
+    }
+
+    .toc a:hover {
+      opacity: 1;
+      color: var(--accent);
+    }
+
+    /* ── SECTIONS ── */
+    section {
+      margin-bottom: 3.5rem;
+      padding-bottom: 3.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    section:last-of-type {
+      border-bottom: none;
+    }
+
+    .section-num {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 0.6rem;
+    }
+
+    h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.6rem;
+      font-weight: 400;
+      color: var(--text);
+      margin-bottom: 1.2rem;
+      line-height: 1.25;
+    }
+
+    p {
+      color: #c0beb8;
+      margin-bottom: 1rem;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    /* ── DATA TABLE ── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.4rem 0;
+      font-size: 0.9rem;
+    }
+
+    .data-table th {
+      text-align: left;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      font-weight: 500;
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid rgba(35,36,40,0.6);
+      color: #c0beb8;
+      vertical-align: top;
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .data-table tr:hover td {
+      background: rgba(255,255,255,0.015);
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.55rem;
+      border-radius: 100px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .tag-account { background: rgba(100,160,255,0.12); color: #80b4ff; }
+    .tag-content { background: rgba(201,168,76,0.12); color: var(--accent); }
+    .tag-payment { background: rgba(80,200,130,0.1); color: #6dd49a; }
+    .tag-technical { background: rgba(180,100,255,0.1); color: #c48dff; }
+
+    /* ── CALLOUT ── */
+    .callout {
+      background: var(--accent-dim);
+      border-left: 2px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      padding: 1.1rem 1.4rem;
+      margin: 1.4rem 0;
+      font-size: 0.92rem;
+      color: #d4c89a;
+    }
+
+    /* ── PARTNER LIST ── */
+    .partner-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin: 1.2rem 0;
+    }
+
+    .partner-list li {
+      display: flex;
+      align-items: baseline;
+      gap: 0.85rem;
+      font-size: 0.92rem;
+      color: #c0beb8;
+    }
+
+    .partner-name {
+      font-weight: 500;
+      color: var(--text);
+      min-width: 110px;
+      font-size: 0.88rem;
+    }
+
+    .partner-role {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    /* ── CONTACT CARD ── */
+    .contact-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      margin-top: 1.4rem;
+    }
+
+    .contact-card .label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+
+    .contact-card .value {
+      color: var(--accent);
+      font-size: 1rem;
+      text-decoration: none;
+    }
+
+    .contact-card .value:hover {
+      text-decoration: underline;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 2rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    footer a { color: var(--muted); text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a class="wordmark" href="https://monetstudy.vercel.app">MonetStudy</a>
+    <span class="last-updated">Last updated: May 2026</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- HERO -->
+  <div class="hero">
+    <p class="eyebrow">Legal &amp; Transparency</p>
+    <h1>Privacy <em>Policy</em></h1>
+    <p class="hero-intro">
+      MonetStudy is built on the belief that your learning materials are yours alone.
+      This policy explains clearly and honestly what data we collect, why we collect it,
+      who we share it with, and how you can control it.
+    </p>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <p class="toc-title">Contents</p>
+    <ol>
+      <li><a href="#who-we-are">Who We Are</a></li>
+      <li><a href="#data-we-collect">Data We Collect</a></li>
+      <li><a href="#how-we-use">How We Use Your Data</a></li>
+      <li><a href="#third-parties">Third-Party Services</a></li>
+      <li><a href="#ai-processing">AI Processing</a></li>
+      <li><a href="#data-retention">Data Retention</a></li>
+      <li><a href="#your-rights">Your Rights</a></li>
+      <li><a href="#children">Children's Privacy</a></li>
+      <li><a href="#security">Security</a></li>
+      <li><a href="#changes">Policy Changes</a></li>
+      <li><a href="#contact">Contact Us</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <section id="who-we-are">
+    <p class="section-num">01</p>
+    <h2>Who We Are</h2>
+    <p>
+      MonetStudy ("we", "us", "our") is an AI-native learning platform that allows students and
+      learners worldwide to upload their own study materials — PDFs, presentations, and notes —
+      and receive AI-generated course modules, quizzes, flashcards, audio overviews, and
+      personalised mock exams.
+    </p>
+    <p>
+      MonetStudy is operated by KNEITHEN TECH, based in Kampala, Uganda. You can reach us at the
+      contact details in Section 11 of this policy.
+    </p>
+    <p>
+      By accessing MonetStudy at <strong>monetstudy.vercel.app</strong> or through our
+      Android application, you agree to the practices described in this Privacy Policy.
+    </p>
+  </section>
+
+  <!-- 2 -->
+  <section id="data-we-collect">
+    <p class="section-num">02</p>
+    <h2>Data We Collect</h2>
+    <p>We collect the following categories of information when you use MonetStudy:</p>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Examples</th>
+          <th>Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Account information</td>
+          <td>Name, email address, profile photo (via Google Sign-In)</td>
+          <td><span class="tag tag-account">Account</span></td>
+        </tr>
+        <tr>
+          <td>Onboarding preferences</td>
+          <td>Learning style, preferred tone, difficulty level, analogy preferences</td>
+          <td><span class="tag tag-account">Account</span></td>
+        </tr>
+        <tr>
+          <td>Uploaded content</td>
+          <td>PDFs, PowerPoint files, notes, and any other documents you upload</td>
+          <td><span class="tag tag-content">Content</span></td>
+        </tr>
+        <tr>
+          <td>Generated content</td>
+          <td>Course modules, quizzes, flashcards, audio overviews, and mock exams created from your uploads</td>
+          <td><span class="tag tag-content">Content</span></td>
+        </tr>
+        <tr>
+          <td>Payment information</td>
+          <td>Transaction records and payment status (processed by Pesapal; card details are never stored by us)</td>
+          <td><span class="tag tag-payment">Payment</span></td>
+        </tr>
+        <tr>
+          <td>Usage data</td>
+          <td>Pages visited, features used, session duration, quiz results</td>
+          <td><span class="tag tag-technical">Technical</span></td>
+        </tr>
+        <tr>
+          <td>Device &amp; technical data</td>
+          <td>IP address, browser type, operating system, device identifiers</td>
+          <td><span class="tag tag-technical">Technical</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      We do not knowingly collect sensitive personal data such as government ID numbers,
+      health records, or biometric data.
+    </p>
+  </section>
+
+  <!-- 3 -->
+  <section id="how-we-use">
+    <p class="section-num">03</p>
+    <h2>How We Use Your Data</h2>
+    <p>We use your data strictly to provide and improve MonetStudy:</p>
+    <ul style="list-style:none;display:flex;flex-direction:column;gap:0.6rem;margin:1rem 0;">
+      <li style="display:flex;gap:0.75rem;color:#c0beb8;font-size:0.92rem;"><span style="color:var(--accent);margin-top:0.1rem;">→</span> To authenticate your account and personalise your experience</li>
+      <li style="display:flex;gap:0.75rem;color:#c0beb8;font-size:0.92rem;"><span style="color:var(--accent);margin-top:0.1rem;">→</span> To process your uploaded files and generate AI course content</li>
+      <li style="display:flex;gap:0.75rem;color:#c0beb8;font-size:0.92rem;"><span style="color:var(--accent);margin-top:0.1rem;">→</span> To process subscription payments and maintain billing records</li>
+      <li style="display:flex;gap:0.75rem;color:#c0beb8;font-size:0.92rem;"><span style="color:var(--accent);margin-top:0.1rem;">→</span> To improve platform performance, fix bugs, and develop new features</li>
+      <li style="display:flex;gap:0.75rem;color:#c0beb8;font-size:0.92rem;"><span style="color:var(--accent);margin-top:0.1rem;">→</span> To send you service-related notifications (account activity, billing)</li>
+      <li style="display:flex;gap:0.75rem;color:#c0beb8;font-size:0.92rem;"><span style="color:var(--accent);margin-top:0.1rem;">→</span> To comply with legal obligations</li>
+    </ul>
+    <div class="callout">
+      We do not sell your personal data. We do not use your uploaded study materials to train
+      AI models. We do not display third-party advertising.
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="third-parties">
+    <p class="section-num">04</p>
+    <h2>Third-Party Services</h2>
+    <p>
+      MonetStudy uses trusted third-party services to operate. Each receives only the data
+      necessary for their specific function:
+    </p>
+    <ul class="partner-list">
+      <li>
+        <span class="partner-name">Google Firebase</span>
+        <span>Authentication, database storage, and file hosting</span>
+        <span class="partner-role">— google.com/firebase</span>
+      </li>
+      <li>
+        <span class="partner-name">Google Auth</span>
+        <span>Sign-in via your Google account (OAuth 2.0)</span>
+        <span class="partner-role">— accounts.google.com</span>
+      </li>
+      <li>
+        <span class="partner-name">DeepSeek</span>
+        <span>AI language model used to generate course content from your uploads</span>
+        <span class="partner-role">— deepseek.com</span>
+      </li>
+      <li>
+        <span class="partner-name">Pesapal</span>
+        <span>Payment processing for subscriptions (Uganda Shillings and other currencies)</span>
+        <span class="partner-role">— pesapal.com</span>
+      </li>
+      <li>
+        <span class="partner-name">Vercel</span>
+        <span>Web hosting and serverless infrastructure</span>
+        <span class="partner-role">— vercel.com</span>
+      </li>
+    </ul>
+    <p>
+      Each of these providers operates under their own privacy policies and data processing
+      agreements. We encourage you to review their policies for full details.
+    </p>
+  </section>
+
+  <!-- 5 -->
+  <section id="ai-processing">
+    <p class="section-num">05</p>
+    <h2>AI Processing &amp; Your Content</h2>
+    <p>
+      When you upload a file to MonetStudy, its content is sent to the DeepSeek API for
+      processing. This is what powers the generation of your course modules, quizzes,
+      flashcards, and mock exams.
+    </p>
+    <div class="callout">
+      Your uploaded content is processed by DeepSeek solely for the purpose of generating
+      your personalised learning materials. We do not use your content to train any AI model,
+      and we do not share it with any other party for any other purpose.
+    </div>
+    <p>
+      Courses you create are private by default. If you use the "Make Public" toggle to share
+      a course, that course becomes visible to other MonetStudy users. You can make a public
+      course private again at any time from your dashboard.
+    </p>
+    <p>
+      Audio overviews generated from your materials are stored in Firebase Storage and
+      associated with your account. They are not shared with other users unless you
+      explicitly make the course public.
+    </p>
+  </section>
+
+  <!-- 6 -->
+  <section id="data-retention">
+    <p class="section-num">06</p>
+    <h2>Data Retention</h2>
+    <p>
+      We retain your data for as long as your account is active, or as long as necessary to
+      provide our services.
+    </p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Data type</th>
+          <th>Retention period</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Account &amp; profile data</td>
+          <td>Until account deletion</td>
+        </tr>
+        <tr>
+          <td>Uploaded files</td>
+          <td>Until you delete them or your account is deleted</td>
+        </tr>
+        <tr>
+          <td>Generated course content</td>
+          <td>Until you delete the course or your account</td>
+        </tr>
+        <tr>
+          <td>Payment records</td>
+          <td>7 years (required for financial compliance)</td>
+        </tr>
+        <tr>
+          <td>Usage logs</td>
+          <td>90 days</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      When you delete your account, your personal data and uploaded content are permanently
+      removed from our active systems within 30 days. Anonymised, aggregated usage statistics
+      may be retained indefinitely and cannot be linked back to you.
+    </p>
+  </section>
+
+  <!-- 7 -->
+  <section id="your-rights">
+    <p class="section-num">07</p>
+    <h2>Your Rights</h2>
+    <p>You have the following rights regarding your personal data:</p>
+    <ul class="partner-list">
+      <li>
+        <span class="partner-name">Access</span>
+        <span>Request a copy of the personal data we hold about you</span>
+      </li>
+      <li>
+        <span class="partner-name">Correction</span>
+        <span>Ask us to correct inaccurate or incomplete information</span>
+      </li>
+      <li>
+        <span class="partner-name">Deletion</span>
+        <span>Request deletion of your account and all associated personal data</span>
+      </li>
+      <li>
+        <span class="partner-name">Portability</span>
+        <span>Request an export of your data in a machine-readable format</span>
+      </li>
+      <li>
+        <span class="partner-name">Objection</span>
+        <span>Object to processing where we rely on legitimate interests as a legal basis</span>
+      </li>
+      <li>
+        <span class="partner-name">Withdrawal</span>
+        <span>Withdraw consent at any time where processing is based on consent</span>
+      </li>
+    </ul>
+    <p>
+      To exercise any of these rights, contact us at the address in Section 11. We will
+      respond within 30 days.
+    </p>
+  </section>
+
+  <!-- 8 -->
+  <section id="children">
+    <p class="section-num">08</p>
+    <h2>Children's Privacy</h2>
+    <p>
+      MonetStudy is intended for users aged 13 and above. We do not knowingly collect
+      personal data from children under the age of 13. If you are a parent or guardian and
+      believe your child has created an account on MonetStudy, please contact us immediately
+      and we will delete the account and associated data.
+    </p>
+    <p>
+      In jurisdictions where the age of digital consent is higher (e.g. 16 in parts of the
+      EU), users below that age must have verifiable parental consent before using the
+      platform.
+    </p>
+  </section>
+
+  <!-- 9 -->
+  <section id="security">
+    <p class="section-num">09</p>
+    <h2>Security</h2>
+    <p>
+      We take reasonable technical and organisational measures to protect your data.
+      These include HTTPS encryption for all data in transit, Firebase Security Rules to
+      restrict database and storage access, and OAuth 2.0 for authentication — meaning we
+      never store your Google password.
+    </p>
+    <p>
+      No system is completely secure. In the event of a data breach that is likely to result
+      in risk to your rights and freedoms, we will notify affected users promptly and take
+      immediate steps to contain and remediate the incident.
+    </p>
+  </section>
+
+  <!-- 10 -->
+  <section id="changes">
+    <p class="section-num">10</p>
+    <h2>Changes to This Policy</h2>
+    <p>
+      We may update this Privacy Policy from time to time to reflect changes in our
+      practices or for legal, operational, or regulatory reasons. When we do, we will
+      update the "Last updated" date at the top of this page.
+    </p>
+    <p>
+      For material changes, we will notify you by email (to the address associated with your
+      account) or via an in-app notice at least 14 days before the change takes effect.
+      Continued use of MonetStudy after the effective date constitutes acceptance of the
+      updated policy.
+    </p>
+  </section>
+
+  <!-- 11 -->
+  <section id="contact">
+    <p class="section-num">11</p>
+    <h2>Contact Us</h2>
+    <p>
+      If you have any questions about this Privacy Policy, wish to exercise your data rights,
+      or want to report a concern, please reach out:
+    </p>
+    <div class="contact-card">
+      <p class="label">Email</p>
+      <a class="value" href="mailto:monetsbox@gmail.com">monetsbox@gmail.com</a>
+      <p class="label" style="margin-top:1.2rem;">Operator</p>
+      <p class="value" style="color:var(--text);">KNEITHEN TECH — Kampala, Uganda</p>
+      <p class="label" style="margin-top:1.2rem;">Platform</p>
+      <a class="value" href="https://monetstudy.vercel.app">monetstudy.vercel.app</a>
+    </div>
+    <p style="margin-top:1.4rem;font-size:0.88rem;color:var(--muted);">
+      We aim to respond to all privacy-related enquiries within 30 days.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <p>© 2026 MonetStudy · KNEITHEN TECH · Kampala, Uganda</p>
+  <p style="margin-top:0.5rem;"><a href="https://monetstudy.vercel.app">Back to MonetStudy</a></p>
+</footer>
+
+</body>
+</html>
