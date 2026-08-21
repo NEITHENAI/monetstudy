@@ -359,7 +359,10 @@ INSTRUCTIONS:
    Include at least ONE visual visual aid embedded directly in the lesson:
    - OPTION A: Use a \`\`\`mermaid diagram block for workflows, step-by-step processes, cycles, timelines, decision trees, hierarchy trees, or cause-and-effect relationships (e.g. graph TD, graph LR, sequenceDiagram, stateDiagram-v2).
    - OPTION B: Use a \`\`\`svg block with a standalone <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">...</svg> for anatomical cross-sections, geometric proofs, physics force diagrams, chemical molecules, mathematical curves, or conceptual infographics with high-contrast text labels.
-3. Choose whichever format (Mermaid or SVG) best fits the concept in this topic.
+3. CRITICAL CODE FENCE SYNTAX:
+   - ALWAYS wrap Mermaid diagrams in triple backticks (\`\`\`mermaid ... \`\`\`).
+   - ALWAYS wrap SVG illustrations in triple backticks (\`\`\`svg <svg ...>...</svg> \`\`\`).
+   - NEVER output bare naked SVG tags or bare Mermaid text without triple backticks.
 4. After the visual block, describe what the student should observe.
 
 Start directly with # ${t.title}.`;

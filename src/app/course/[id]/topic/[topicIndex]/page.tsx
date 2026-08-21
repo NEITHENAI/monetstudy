@@ -270,7 +270,9 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
   };
 
   const processContent = (raw: string): string => {
+    if (!raw) return '';
     let content = raw;
+
     content = content.replace(/\[PAGE_(\d+)\]/g, (_, num) => {
       const url = pageImageUrls[parseInt(num, 10)];
       if (url) return `\n\n![PDF Page ${num}](${url})\n\n`;
@@ -279,6 +281,17 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
     content = content.replace(/\[FIGURE_(\d+)\]/g, (_, num) => {
       return `\n\n![Figure ${num}](figure:${num})\n\n`;
     });
+
+    // Normalize SVG code blocks (handles un-fenced `svg <svg ...</svg>` and standalone `<svg ...</svg>`)
+    content = content.replace(/(?:```(?:svg|xml|html)?\s*)?(?:svg\s*)?(<svg[\s\S]*?<\/svg>)(?:\s*```)?/gi, (_, svgXml) => {
+      return `\n\n\`\`\`svg\n${svgXml.trim()}\n\`\`\`\n\n`;
+    });
+
+    // Normalize Mermaid diagrams (handles un-fenced `mermaid graph TD ...` or `mermaid\ngraph TD ...`)
+    content = content.replace(/(?:```mermaid\s*)?(?:mermaid\s+)?((?:graph|flowchart|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+(?:TD|TB|BT|RL|LR)?[\s\S]*?)(?=(?:\n\n(?:\#{1,6}\s|[A-Z0-9\*\-]|---|\Z))|```|$)/gi, (_, mermaidBody) => {
+      return `\n\n\`\`\`mermaid\n${mermaidBody.trim()}\n\`\`\`\n\n`;
+    });
+
     return content;
   };
 

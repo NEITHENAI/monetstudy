@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
@@ -46,6 +46,19 @@ function initMermaid(isDark: boolean) {
   }
 }
 
+function formatMermaidCode(raw: string): string {
+  let clean = (raw || '').trim().replace(/^```(?:mermaid)?\s*/i, '').replace(/```$/, '').trim();
+  clean = clean.replace(/^mermaid\s+/i, '').trim();
+
+  // If statements were crammed into a single line, split into valid lines
+  if (!clean.includes('\n')) {
+    clean = clean.replace(/^(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+/i, '$1\n    ');
+    clean = clean.replace(/\s+([A-Za-z0-9_]+\s*(?:\[|\{|\(|\>|--\>|-->|==>|-.->|\|))/g, '\n    $1');
+  }
+
+  return clean;
+}
+
 // ─── 1. MERMAID DIAGRAM COMPONENT ──────────────────────────────────
 export function MermaidDiagram({ chart }: { chart: string }) {
   const { theme: T } = useTheme();
@@ -65,7 +78,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
       try {
         setError(null);
         const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`;
-        const cleanChart = chart.trim().replace(/^```mermaid\s*/i, '').replace(/```$/, '').trim();
+        const cleanChart = formatMermaidCode(chart);
         const { svg } = await mermaid.render(id, cleanChart);
         if (isMounted) {
           setSvgHtml(svg);
@@ -216,15 +229,22 @@ export function SvgIllustration({ svgCode, alt }: { svgCode: string; alt?: strin
 
   useEffect(() => {
     let code = (svgCode || '').trim();
-    // Strip markdown wrappers if present
-    code = code.replace(/^```(svg|xml|html)?\s*/i, '').replace(/```$/, '').trim();
+    // Strip markdown wrappers or leading label
+    code = code.replace(/^```(?:svg|xml|html)?\s*/i, '').replace(/```$/, '').trim();
+    code = code.replace(/^svg\s+/i, '').trim();
+
+    // Extract actual SVG tag if surrounded by text
+    const match = /(<svg[\s\S]*?<\/svg>)/i.exec(code);
+    if (match) {
+      code = match[1];
+    }
 
     // Ensure responsive attributes
     if (code.includes('<svg') && !code.includes('viewBox')) {
       code = code.replace(/<svg\s*/i, '<svg viewBox="0 0 800 450" ');
     }
     // Inject responsive width & height styling
-    code = code.replace(/<svg\s+/i, '<svg style="width:100%;height:auto;max-height:480px;display:block;margin:0 auto;" ');
+    code = code.replace(/<svg\s+/i, '<svg style="width:100%;height:auto;max-height:520px;display:block;margin:0 auto;" ');
 
     setCleanedSvg(code);
   }, [svgCode]);
