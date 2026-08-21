@@ -51,20 +51,30 @@ function formatMermaidCode(raw: string): string {
   let clean = (raw || '').trim().replace(/^```(?:mermaid)?\s*/i, '').replace(/```$/, '').trim();
   clean = clean.replace(/^mermaid\s+/i, '').trim();
 
-  // 1. Filter out markdown commentary lines (e.g. "**Observe:**...", "# Title", "Note:")
+  // 1. Repair broken newlines inside brackets [ ... \n ... ]
+  clean = clean.replace(/\[([^\]]*?)\n+([^\]]*?)\]/g, '[$1 $2]');
+
+  // 2. Separate multiple statements on one line onto distinct lines
+  clean = clean.replace(/\]\s+([A-Za-z0-9_]+)\s*(?:\[|\(|\{|\>|-->|--\>|==>)/g, ']\n    $1');
+  clean = clean.replace(/\)\s+([A-Za-z0-9_]+)\s*(?:\[|\(|\{|\>|-->|--\>|==>)/g, ')\n    $1');
+  clean = clean.replace(/\}\s+([A-Za-z0-9_]+)\s*(?:\[|\(|\{|\>|-->|--\>|==>)/g, '}\n    $1');
+
+  // 3. Process line by line: stop at markdown commentary, sanitize & quote node labels
   const lines = clean.split('\n');
   const sanitizedLines: string[] = [];
 
   for (const line of lines) {
     const trimmed = line.trim();
+    if (!trimmed) continue;
+
     // Stop diagram as soon as markdown commentary or observation text starts
     if (/^(\*{1,2}|#{1,6}|Observe:|Note:|Explanation:|Figure:|Diagram:|This diagram)/i.test(trimmed)) {
       break;
     }
-    
-    // Automatically quote unquoted node labels containing & or special characters: [Young & herbaceous plants] -> ["Young and herbaceous plants"]
-    let processedLine = line.replace(/\[([^"\]\n]+)\]/g, (_, inner) => {
-      const safe = inner.replace(/&/g, 'and').trim();
+
+    // Automatically double-quote any node text inside square brackets [ ... ] so colons, semicolons, ampersands, and quotes never break syntax
+    let processedLine = line.replace(/\[\s*(?:"|')?([^\]]*?)(?:"|')?\s*\]/g, (_, inner) => {
+      const safe = inner.replace(/"/g, "'").replace(/&/g, 'and').trim();
       return `["${safe}"]`;
     });
 
@@ -73,11 +83,8 @@ function formatMermaidCode(raw: string): string {
 
   clean = sanitizedLines.join('\n').trim();
 
-  // 2. If statements were crammed into a single line, split into valid lines
-  if (!clean.includes('\n') && (clean.includes('-->') || clean.includes('---'))) {
-    clean = clean.replace(/^(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+/i, '$1\n    ');
-    clean = clean.replace(/\s+([A-Za-z0-9_]+\s*(?:\[|\{|\(|\>|--\>|-->|==>|-.->|\|))/g, '\n    $1');
-  }
+  // 4. If diagram header (e.g. graph TD) is on same line as first node, split them
+  clean = clean.replace(/^(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+([A-Za-z0-9_]+)/i, '$1\n    $2');
 
   return clean;
 }

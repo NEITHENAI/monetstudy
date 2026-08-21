@@ -36,11 +36,6 @@ function cleanMarkdown(raw: string): string {
   content = content.replace(/^Start directly with.*$/gm, '');
   // Strip "Source:" or "Context:" metadata lines
   content = content.replace(/^(SOURCE TEXT|SOURCE MATERIAL|SOURCE DIAGRAM|DIAGRAM CATALOG|NEW HARMONIZED|NEW ILLUSTRATION|Concept designed):?.*$/gm, '');
-  // Find the first heading and strip everything before it
-  const firstHash = content.indexOf('#');
-  if (firstHash > 0) {
-    content = content.substring(firstHash);
-  }
   // Clean up excessive blank lines
   content = content.replace(/\n{3,}/g, '\n\n');
   return content.trim();
