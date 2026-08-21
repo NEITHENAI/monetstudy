@@ -51,8 +51,30 @@ function formatMermaidCode(raw: string): string {
   let clean = (raw || '').trim().replace(/^```(?:mermaid)?\s*/i, '').replace(/```$/, '').trim();
   clean = clean.replace(/^mermaid\s+/i, '').trim();
 
-  // If statements were crammed into a single line, split into valid lines
-  if (!clean.includes('\n')) {
+  // 1. Filter out markdown commentary lines (e.g. "**Observe:**...", "# Title", "Note:")
+  const lines = clean.split('\n');
+  const sanitizedLines: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Stop diagram as soon as markdown commentary or observation text starts
+    if (/^(\*{1,2}|#{1,6}|Observe:|Note:|Explanation:|Figure:|Diagram:|This diagram)/i.test(trimmed)) {
+      break;
+    }
+    
+    // Automatically quote unquoted node labels containing & or special characters: [Young & herbaceous plants] -> ["Young and herbaceous plants"]
+    let processedLine = line.replace(/\[([^"\]\n]+)\]/g, (_, inner) => {
+      const safe = inner.replace(/&/g, 'and').trim();
+      return `["${safe}"]`;
+    });
+
+    sanitizedLines.push(processedLine);
+  }
+
+  clean = sanitizedLines.join('\n').trim();
+
+  // 2. If statements were crammed into a single line, split into valid lines
+  if (!clean.includes('\n') && (clean.includes('-->') || clean.includes('---'))) {
     clean = clean.replace(/^(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+/i, '$1\n    ');
     clean = clean.replace(/\s+([A-Za-z0-9_]+\s*(?:\[|\{|\(|\>|--\>|-->|==>|-.->|\|))/g, '\n    $1');
   }
