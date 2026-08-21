@@ -122,34 +122,6 @@ export default function DashboardPage() {
         <div style={{ flex: 1, overflowY: 'auto' }} className="animate-fade-up">
           <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 20px 48px' }}>
             
-            {/* Demo Mode Alert Banner */}
-            {isDemo && (
-              <div style={{
-                background: T.amberDim, border: `1.5px solid ${T.amber}44`,
-                borderRadius: 20, padding: '12px 18px', marginBottom: 20,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                flexWrap: 'wrap', gap: 10,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>✦</span>
-                  <span style={{ fontSize: 13, color: T.text, fontFamily: F.sans, fontWeight: 700 }}>
-                    You are in Demo Mode (Alex Rivera)
-                  </span>
-                </div>
-                <button
-                  onClick={handleSignOut}
-                  style={{
-                    background: T.card, border: `1px solid ${T.borderMid}`,
-                    borderRadius: 999, padding: '6px 14px', fontSize: 12,
-                    fontFamily: F.sans, fontWeight: 800, color: T.teal,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Exit Demo & Sign In / Sign Up →
-                </button>
-              </div>
-            )}
-
             {/* Greeting Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div>

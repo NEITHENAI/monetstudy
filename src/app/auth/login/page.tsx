@@ -92,7 +92,7 @@ export default function LoginPage() {
                 Sign In
               </h1>
               <p style={{ color: T.textSub, fontSize: 13, margin: 0, fontFamily: F.sans }}>
-                Enter your credentials or test with instant demo mode
+                Enter your credentials to access your study platform
               </p>
             </div>
 
@@ -130,25 +130,10 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ marginTop: 20 }}>
                 <Btn onClick={handleEmail} disabled={loading || !email || !pass} style={{ width: '100%', padding: '14px' }}>
                   {loading ? <Spinner size={18} color="#FFFFFF" /> : 'Sign In →'}
                 </Btn>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    try { localStorage.setItem('monet_demo_mode', 'true'); } catch {}
-                    window.location.href = '/dashboard';
-                  }}
-                  style={{
-                    width: '100%', padding: '12px', background: 'transparent',
-                    border: `1.5px dashed ${T.teal}`, borderRadius: 999,
-                    color: T.teal, fontSize: 13, fontFamily: F.sans, fontWeight: 700,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  }}>
-                  <span>✦</span> Explore Demo Mode (No API keys needed)
-                </button>
               </div>
             </div>
 
