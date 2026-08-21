@@ -9,6 +9,7 @@ import type { Topic, Question } from '@/types';
 import ReactMarkdown from 'react-markdown';
 import { getConceptImageUrl } from '@/lib/extractPDFImages';
 import VoiceNarrator from '@/components/VoiceNarrator';
+import { MermaidDiagram, SvgIllustration } from '@/components/DiagramViewer';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -352,7 +353,24 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
               ol: ({children}) => <ol style={{ paddingLeft: 26, marginBottom: 20 }}>{children}</ol>,
               li: ({children}) => <li style={{ marginBottom: 8, color: T.textSub }}>{children}</li>,
               p: ({children}) => <p style={{ marginBottom: 20, lineHeight: 1.9 }}>{children}</p>,
-              code: ({children}) => <code style={{ background: T.card2, padding: '3px 10px', borderRadius: 8, fontFamily: F.mono, fontSize: 14, color: T.teal, border: `1px solid ${T.border}` }}>{children}</code>,
+              code: ({children, className, ...props}) => {
+                const match = /language-(\w+)/.exec(className || '');
+                const lang = match ? match[1].toLowerCase() : '';
+                const codeContent = String(children || '').replace(/\n$/, '');
+
+                if (lang === 'mermaid') {
+                  return <MermaidDiagram chart={codeContent} />;
+                }
+                if (lang === 'svg' || (typeof codeContent === 'string' && codeContent.trim().startsWith('<svg') && codeContent.trim().endsWith('</svg>'))) {
+                  return <SvgIllustration svgCode={codeContent} />;
+                }
+                return (
+                  <code style={{ background: T.card2, padding: '3px 10px', borderRadius: 8, fontFamily: F.mono, fontSize: 14, color: T.teal, border: `1px solid ${T.border}` }} className={className} {...props}>
+                    {children}
+                  </code>
+                );
+              },
+              pre: ({children}) => <div style={{ margin: '16px 0' }}>{children}</div>,
               blockquote: ({children}) => <blockquote style={{ borderLeft: `4px solid ${T.teal}`, background: T.card2, padding: '16px 22px', borderRadius: '0 20px 20px 0', margin: '24px 0', color: T.text, fontStyle: 'italic', boxShadow: '0 4px 16px rgba(44,24,16,0.03)' }}>{children}</blockquote>,
               img: ({src, alt}) => <SmartImage src={src || ''} alt={alt || ''} T={T} />,
             }}

@@ -348,7 +348,7 @@ Respond with ONLY valid JSON with this exact structure:
         sourceContext = relevantChunks.join('\n\n...\n\n');
       }
 
-      // 3a. Synthesize the Lesson
+      // 3a. Synthesize the Lesson with Mermaid diagrams & SVG illustrations
       const instructionalText = `Write a premium, textbook-quality lesson for: "${t.title}"
 
 SOURCE MATERIAL:
@@ -357,17 +357,20 @@ ${sourceContext}
 ${pageAnalyses ? `VISUAL CONTEXT FROM PDF:\n${pageAnalyses}` : ''}
 ${params.customInstructions ? `\nUSER'S PERSONALISATION NOTES (follow these closely):\n${params.customInstructions}\n` : ''}
 INSTRUCTIONS:
-1. TONE: High-end textbook. Clear, professional, and deep.
-2. At the most important concept in the text, embed exactly ONE image placeholder using the exact syntax: ![Illustration][ILLUSTRATION]
-3. After the placeholder, describe what the student should observe in the diagram.
-4. Use # Title, ## Sections, ### Subsections. Bold key terms. 500-800 words.
+1. TONE & DEPTH: High-end academic textbook. Clear, comprehensive, and engaging. Use # Title, ## Sections, ### Subsections. Bold key terms. 500-900 words.
+2. VISUAL DIAGRAMS & ILLUSTRATIONS (MANDATORY):
+   Include at least ONE visual visual aid embedded directly in the lesson:
+   - OPTION A: Use a \`\`\`mermaid diagram block for workflows, step-by-step processes, cycles, timelines, decision trees, hierarchy trees, or cause-and-effect relationships (e.g. graph TD, graph LR, sequenceDiagram, stateDiagram-v2).
+   - OPTION B: Use a \`\`\`svg block with a standalone <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">...</svg> for anatomical cross-sections, geometric proofs, physics force diagrams, chemical molecules, mathematical curves, or conceptual infographics with high-contrast text labels.
+3. Choose whichever format (Mermaid or SVG) best fits the concept in this topic.
+4. After the visual block, describe what the student should observe.
 
 Start directly with # ${t.title}.`;
 
       const contentRaw = await callDeepSeek([
         {
           role: 'system',
-          content: `You are a world-class academic author. Respond ONLY with the markdown lesson. No preambles.`,
+          content: `You are a world-class academic author and visual educator. Respond ONLY with the markdown lesson including the Mermaid or SVG code blocks. No introductory or closing remarks.`,
         },
         {
           role: 'user',
@@ -376,43 +379,7 @@ Start directly with # ${t.title}.`;
       ]);
       const content = cleanMarkdown(contentRaw);
 
-      let finalContent = content;
-
-      if (isPremiumImages) {
-        const illustrationDesignRaw = await callDeepSeek([
-          {
-            role: 'system',
-            content: 'You design image prompts for an AI graphic designer. Respond with ONLY a short description of the core visual concept from the text, maximum 15 words. No quotes, no punctuation. Focus on specific visual elements.',
-          },
-          {
-            role: 'user',
-            content: `Read this lesson and design a 15-word image prompt for a flat-design textbook diagram that perfectly illustrates its core concept:\n\n${content.slice(0, 2000)}`,
-          },
-        ], 0.3);
-        const cleanPrompt = illustrationDesignRaw.replace(/[^a-zA-Z0-9\s]/g, '').trim();
-
-        const illustrationUrl = await generateImage(cleanPrompt);
-
-        finalContent = content.replace(
-          /!\[([^\]]*)\]\[ILLUSTRATION\]/g,
-          `![$1](${illustrationUrl})`
-        );
-        finalContent = finalContent.replace(
-          /!\[([^\]]*)\]\(ILLUSTRATION\)/g,
-          `![$1](${illustrationUrl})`
-        );
-      } else {
-        finalContent = content.replace(
-          /!\[([^\]]*)\]\[ILLUSTRATION\]/g,
-          '> ✦ *AI-generated illustration available on Scholar & Unlimited plans. [Upgrade →](/upgrade)*'
-        );
-        finalContent = finalContent.replace(
-          /!\[([^\]]*)\]\(ILLUSTRATION\)/g,
-          '> ✦ *AI-generated illustration available on Scholar & Unlimited plans. [Upgrade →](/upgrade)*'
-        );
-      }
-
-      return finalContent;
+      return content;
     }));
 
     topicContents.push(...batchResults);
