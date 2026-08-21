@@ -153,7 +153,7 @@ export default function DashboardPage() {
             {/* Desktop Hero Section: 2-Column Split on PC */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
               gap: 20,
               marginBottom: 28,
             }}>
@@ -294,7 +294,7 @@ export default function DashboardPage() {
             ) : (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
                 gap: 16,
               }}>
                 {subjects.map(s => {
@@ -419,7 +419,7 @@ export default function DashboardPage() {
             ) : (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
                 gap: 16,
               }}>
                 {filteredCourses.map(c => (
@@ -506,7 +506,7 @@ export default function DashboardPage() {
             {/* Desktop 2-Column Split: Stats & Settings */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
               gap: 20,
               marginBottom: 28,
             }}>

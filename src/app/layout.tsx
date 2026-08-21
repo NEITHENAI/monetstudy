@@ -6,8 +6,8 @@ import { ThemeProvider } from '@/context/ThemeContext';
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   themeColor: '#080b11',
 };
 
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: "'Inter', system-ui, sans-serif", margin: 0, overscrollBehavior: 'none' }}>
+      <body style={{ fontFamily: "'Inter', system-ui, sans-serif", margin: 0, minHeight: '100vh', WebkitOverflowScrolling: 'touch' }}>
         <AuthProvider>
           <ThemeProvider>
             {children}

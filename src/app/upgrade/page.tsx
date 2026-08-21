@@ -196,8 +196,8 @@ export default function UpgradePage() {
           {/* Plan cards: Multi-Column Responsive Grid on Desktop */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: 24,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: 20,
             marginBottom: 36,
           }}>
             {PLANS.filter(p => p.id !== 'free').map(plan => {
@@ -301,7 +301,7 @@ export default function UpgradePage() {
           </div>
 
           {/* Desktop 2-Column Row for Payment Options and Promo Code */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20, marginBottom: 32 }}>
             {/* Payment methods */}
             <div style={{ background: T.card, border: `1.5px solid ${T.borderMid}`, borderRadius: 28, padding: '24px', boxShadow: '0 4px 16px rgba(44, 24, 16, 0.03)' }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: T.text, fontFamily: F.sans, marginBottom: 12 }}>Accepted Payment Methods</div>

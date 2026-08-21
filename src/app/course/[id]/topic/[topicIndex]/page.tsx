@@ -487,10 +487,10 @@ function QuizScreen({ type, questions, onDone, onBack, T }: { type: string; ques
             {q.question}
           </h3>
 
-          {/* Options Grid (2 columns on desktop) */}
+          {/* Options Grid (1 col on mobile, 2 cols on desktop) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: q.type === 'tf' ? '1fr 1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
+            gridTemplateColumns: q.type === 'tf' ? '1fr 1fr' : 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: 12,
             marginBottom: 24,
           }}>
@@ -512,22 +512,24 @@ function QuizScreen({ type, questions, onDone, onBack, T }: { type: string; ques
 
               return (
                 <button key={i} disabled={answered} onClick={() => setSel(opt)}
+                  className="active:scale-[0.98] transition-transform"
                   style={{
-                    padding: '16px 20px', borderRadius: 20,
+                    padding: '16px 18px', borderRadius: 20,
                     background: bg, border: `1.5px solid ${border}`,
                     color: col, fontSize: 14, fontFamily: F.sans, fontWeight: 700,
                     textAlign: 'left', cursor: answered ? 'default' : 'pointer',
                     transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 12,
+                    minHeight: 56, width: '100%',
                   }}>
                   <span style={{
-                    width: 28, height: 28, borderRadius: '50%',
+                    width: 30, height: 30, borderRadius: '50%',
                     background: isSel ? 'rgba(255,255,255,0.2)' : T.border,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 800, flexShrink: 0,
+                    fontSize: 13, fontWeight: 800, flexShrink: 0,
                   }}>
                     {String.fromCharCode(65 + i)}
                   </span>
-                  <span style={{ flex: 1 }}>{opt}</span>
+                  <span style={{ flex: 1, lineHeight: 1.4 }}>{opt}</span>
                 </button>
               );
             })}
@@ -543,14 +545,14 @@ function QuizScreen({ type, questions, onDone, onBack, T }: { type: string; ques
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'stretch', gap: 12, width: '100%' }}>
             {!answered ? (
-              <Btn onClick={() => setAnswered(true)} disabled={sel === null} style={{ minWidth: 160, padding: '14px 28px' }}>
+              <Btn onClick={() => setAnswered(true)} disabled={sel === null} style={{ width: '100%', padding: '16px' }}>
                 Check Answer
               </Btn>
             ) : (
-              <Btn onClick={handleNext} style={{ minWidth: 160, padding: '14px 28px' }}>
-                {cur < total - 1 ? 'Next Question →' : 'View Results →'}
+              <Btn onClick={handleNext} style={{ width: '100%', padding: '16px' }}>
+                {cur < total - 1 ? 'Next Question →' : 'See Assessment Results →'}
               </Btn>
             )}
           </div>

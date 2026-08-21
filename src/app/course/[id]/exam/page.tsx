@@ -238,7 +238,7 @@ export default function MockExamPage() {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: q.type === 'tf' ? '1fr 1fr' : 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: q.type === 'tf' ? '1fr 1fr' : 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: 12,
             marginBottom: 28,
           }}>
@@ -250,29 +250,31 @@ export default function MockExamPage() {
               const textColor = isSel ? (isPrimary ? '#140E0A' : '#FAF5EE') : T.text;
 
               return (
-                <button key={oi} onClick={() => setSel(v)} style={{
-                  padding: '18px 20px', background: bg, border: `1.5px solid ${border}`,
-                  borderRadius: 20, color: textColor, fontSize: 14, textAlign: 'left',
-                  transition: 'all 0.2s', fontFamily: F.sans, fontWeight: 700, cursor: 'pointer',
-                  boxShadow: isSel ? '0 4px 16px rgba(44, 24, 16, 0.12)' : 'none',
-                  display: 'flex', alignItems: 'center', gap: 12,
-                }}>
+                <button key={oi} onClick={() => setSel(v)}
+                  className="active:scale-[0.98] transition-transform"
+                  style={{
+                    padding: '16px 18px', background: bg, border: `1.5px solid ${border}`,
+                    borderRadius: 20, color: textColor, fontSize: 14, textAlign: 'left',
+                    transition: 'all 0.2s', fontFamily: F.sans, fontWeight: 700, cursor: 'pointer',
+                    boxShadow: isSel ? '0 4px 16px rgba(44, 24, 16, 0.12)' : 'none',
+                    display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, width: '100%',
+                  }}>
                   <span style={{
-                    width: 28, height: 28, borderRadius: '50%',
+                    width: 30, height: 30, borderRadius: '50%',
                     background: isSel ? 'rgba(255,255,255,0.2)' : T.border,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 800, flexShrink: 0,
+                    fontSize: 13, fontWeight: 800, flexShrink: 0,
                   }}>
                     {q.type === 'mcq' ? ['A','B','C','D'][oi] : oi === 0 ? 'T' : 'F'}
                   </span>
-                  <span style={{ flex: 1 }}>{q.type === 'tf' ? (v === 'true' ? 'True' : 'False') : v}</span>
+                  <span style={{ flex: 1, lineHeight: 1.4 }}>{q.type === 'tf' ? (v === 'true' ? 'True' : 'False') : v}</span>
                 </button>
               );
             })}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Btn onClick={handleNext} disabled={sel === null} style={{ minWidth: 180, padding: '16px 28px', fontSize: 15 }}>
+          <div style={{ display: 'flex', justifyContent: 'stretch', width: '100%' }}>
+            <Btn onClick={handleNext} disabled={sel === null} style={{ width: '100%', padding: '16px 28px', fontSize: 15 }}>
               {cur < questions.length - 1 ? 'Next Question →' : 'Submit Exam →'}
             </Btn>
           </div>

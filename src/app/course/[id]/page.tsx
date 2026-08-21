@@ -149,10 +149,10 @@ export default function CoursePage() {
       {/* Main Content Area: Responsive 2-Column Split on Desktop */}
       <main style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{
-          maxWidth: 1200, margin: '0 auto', padding: '32px 20px 60px',
+          maxWidth: 1200, margin: '0 auto', padding: '24px 16px 60px',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-          gap: 28,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 20,
           alignItems: 'start',
         }}>
           {/* Left Column: Course Stats & Test Launcher (Sticky on PC) */}

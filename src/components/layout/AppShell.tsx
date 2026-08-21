@@ -157,7 +157,7 @@ export function AppShell({ children, tab, onTabChange }: AppShellProps) {
       </header>
 
       {/* Page content */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
+      <main className="pb-24 md:pb-6" style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
         {children}
       </main>
 
@@ -165,7 +165,7 @@ export function AppShell({ children, tab, onTabChange }: AppShellProps) {
       <div className="md:hidden" style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         padding: '0 16px 14px', background: 'transparent',
-        flexShrink: 0, zIndex: 30, pointerEvents: 'none',
+        flexShrink: 0, zIndex: 50, pointerEvents: 'none',
       }}>
         <div className="glass shadow-dock" style={{
           background: T.navBg,
@@ -182,19 +182,24 @@ export function AppShell({ children, tab, onTabChange }: AppShellProps) {
           {NAV.map(({ id, Icon, label }) => {
             const active = tab === id;
             return (
-              <button key={id} onClick={() => onTabChange(id)} style={{
-                flex: 1, padding: '9px 12px',
-                background: active ? (T.name === 'dark' || T.name === 'midnight' ? '#FAF5EE' : '#2C1810') : 'transparent',
-                border: 'none',
-                borderRadius: 999,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                transition: 'all 0.25s cubic-bezier(.22,1,.36,1)', cursor: 'pointer',
-                boxShadow: active ? '0 4px 12px rgba(44, 24, 16, 0.18)' : 'none',
-              }}>
-                <Icon size={18} color={active ? (T.name === 'dark' || T.name === 'midnight' ? '#140E0A' : '#FAF5EE') : T.muted} />
+              <button
+                key={id}
+                onClick={() => onTabChange(id)}
+                className="active:scale-95 transition-transform"
+                style={{
+                  flex: 1, padding: '10px 14px',
+                  background: active ? (T.name === 'dark' || T.name === 'midnight' ? '#FAF5EE' : '#2C1810') : 'transparent',
+                  border: 'none',
+                  borderRadius: 999,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  transition: 'all 0.25s cubic-bezier(.22,1,.36,1)', cursor: 'pointer',
+                  boxShadow: active ? '0 4px 12px rgba(44, 24, 16, 0.18)' : 'none',
+                  minHeight: 44,
+                }}>
+                <Icon size={19} color={active ? (T.name === 'dark' || T.name === 'midnight' ? '#140E0A' : '#FAF5EE') : T.muted} />
                 {active && (
                   <span style={{
-                    fontFamily: F.sans, fontSize: 12, fontWeight: 700,
+                    fontFamily: F.sans, fontSize: 12, fontWeight: 800,
                     color: T.name === 'dark' || T.name === 'midnight' ? '#140E0A' : '#FAF5EE',
                   }}>
                     {label}
