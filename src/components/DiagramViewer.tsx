@@ -11,6 +11,7 @@ function initMermaid(isDark: boolean) {
   try {
     mermaid.initialize({
       startOnLoad: false,
+      suppressErrorRendering: true,
       theme: isDark ? 'dark' : 'neutral',
       securityLevel: 'loose',
       fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
@@ -63,7 +64,7 @@ function formatMermaidCode(raw: string): string {
 export function MermaidDiagram({ chart }: { chart: string }) {
   const { theme: T } = useTheme();
   const [svgHtml, setSvgHtml] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<boolean>(false);
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const isDark = T.name === 'dark' || T.name === 'midnight';
@@ -76,17 +77,24 @@ export function MermaidDiagram({ chart }: { chart: string }) {
     const renderChart = async () => {
       if (!chart || !chart.trim()) return;
       try {
-        setError(null);
-        const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`;
+        setError(false);
         const cleanChart = formatMermaidCode(chart);
+
+        // Pre-validate diagram syntax before attempting to render
+        const isValid = await mermaid.parse(cleanChart, { suppressErrors: true }).catch(() => false);
+        if (!isValid) {
+          if (isMounted) setError(true);
+          return;
+        }
+
+        const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`;
         const { svg } = await mermaid.render(id, cleanChart);
         if (isMounted) {
           setSvgHtml(svg);
         }
       } catch (err: any) {
-        console.warn('[Mermaid Render Error]', err);
         if (isMounted) {
-          setError(err?.message || 'Diagram syntax could not be parsed.');
+          setError(true);
         }
       }
     };
