@@ -514,9 +514,20 @@ function QuizScreen({ type, questions, onDone, onBack, T }: { type: string; ques
             {q.type === 'tf' ? 'True or False' : 'Multiple Choice'}
           </div>
 
-          <h3 style={{ fontSize: 20, color: T.text, fontWeight: 800, lineHeight: 1.4, marginBottom: 26, fontFamily: F.sans }}>
+          <h3 style={{ fontSize: 20, color: T.text, fontWeight: 800, lineHeight: 1.4, marginBottom: q.diagram ? 16 : 26, fontFamily: F.sans }}>
             {q.question}
           </h3>
+
+          {/* Visual Diagram / Illustration in Question */}
+          {q.diagram && (
+            <div style={{ marginBottom: 24 }}>
+              {q.diagram.includes('<svg') ? (
+                <SvgIllustration svgCode={q.diagram} />
+              ) : (
+                <MermaidDiagram chart={q.diagram} />
+              )}
+            </div>
+          )}
 
           {/* Options Grid (1 col on mobile, 2 cols on desktop) */}
           <div style={{

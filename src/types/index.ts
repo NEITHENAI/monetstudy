@@ -35,6 +35,7 @@ export interface Question {
   options?: string[];
   correctAnswer: string | boolean;
   explanation: string;
+  diagram?: string;
 }
 
 export interface Topic {

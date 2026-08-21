@@ -276,30 +276,34 @@ export async function generateCourse(params: {
 
   // 2. Generate Outline with DeepSeek
   const wordCount = fullMaterial.trim().split(/\s+/).length;
-  let targetTopicCount = '6 to 10 comprehensive topics';
-  if (wordCount > 25000 || fullMaterial.length > 100000) {
-    targetTopicCount = '12 to 22 comprehensive topics covering all chapters, parts, and subtopics across the whole textbook';
-  } else if (wordCount > 8000 || fullMaterial.length > 35000) {
-    targetTopicCount = '8 to 15 comprehensive topics covering each major section';
+  const charCount = fullMaterial.length;
+
+  let targetTopicCount = '8 to 14 comprehensive topics';
+  if (wordCount > 20000 || charCount > 90000) {
+    targetTopicCount = '18 to 32 exhaustive topics covering every chapter, framework, model, and case study';
+  } else if (wordCount > 7000 || charCount > 30000) {
+    targetTopicCount = '12 to 20 detailed topics covering all key sections and mechanisms';
+  } else if (wordCount > 2500 || charCount > 12000) {
+    targetTopicCount = '8 to 16 structured topics covering the full scope of the text';
   } else if (params.pace === 'Thorough') {
-    targetTopicCount = '8 to 14 in-depth topics';
+    targetTopicCount = '10 to 18 in-depth topics';
   } else if (params.pace === 'Compact') {
-    targetTopicCount = '4 to 7 essential topics';
+    targetTopicCount = '6 to 10 essential topics';
   }
 
   const outlineRaw = await callDeepSeek([
     {
       role: 'system',
-      content: `You are an elite academic curriculum architect. Your task is to design an exhaustive, complete course syllabus that fully covers all material in the provided source text. Never artificially restrict or truncate the number of topics.`,
+      content: `You are an elite academic curriculum architect. Your task is to design an exhaustive, complete course syllabus that fully covers all material in the provided source text. Never artificially restrict, condense, or truncate the number of topics. Cover 100% of the material.`,
     },
     {
       role: 'user',
       content: `Analyze the ENTIRE provided text and design a full, comprehensive course syllabus covering all chapters, models, concepts, and frameworks.
 
 IMPORTANT SYLLABUS GUIDELINES:
-1. TOPIC COUNT IS PROPORTIONAL TO BOOK SIZE: For this material volume (~${wordCount} words), generate ${targetTopicCount}.
-2. DO NOT STOP AT 3 OR 4 TOPICS if the source material contains more concepts or chapters.
-3. Every major theme, subtopic, mechanism, and learning milestone across the entire uploaded text must have its own dedicated topic.
+1. EXHAUSTIVE COVERAGE: Every single chapter, core concept, trading rule, financial model, scientific mechanism, formula, and methodology in the uploaded text MUST be converted into its own dedicated lesson topic.
+2. TOPIC COUNT IS PROPORTIONAL TO BOOK SIZE: For this material volume (~${wordCount} words / ${charCount} chars), generate ${targetTopicCount}.
+3. DO NOT ARTIFICIALLY CONSOLIDATE OR OMIT SUBSECTIONS. Produce as many topics as needed so that no content is left unaddressed.
 4. Style: ${params.style}, Depth: ${params.depth}, Goal: ${params.goal}, Pace: ${params.pace}. ${paceGuide}
 ${params.customInstructions ? `\nUSER CUSTOM INSTRUCTIONS (prioritize these):\n${params.customInstructions}\n` : ''}
 
@@ -404,6 +408,7 @@ export interface GeneratedQuestion {
   options?: string[];
   correctAnswer: string | boolean;
   explanation: string;
+  diagram?: string;
 }
 
 export async function generateQuestions(
@@ -414,22 +419,28 @@ export async function generateQuestions(
   const raw = await callDeepSeek([
     {
       role: 'system',
-      content: `You are a professional quiz designer. Respond ONLY with a valid JSON array of questions. No markdown backticks, no preamble.`,
+      content: `You are a professional quiz and exam designer. Respond ONLY with a valid JSON array of questions. No markdown backticks, no preamble.`,
     },
     {
       role: 'user',
       content: `Generate ${count} quiz questions for: ${topicTitle}
-Content: ${topicContent.slice(0, 4000)}
+Content: ${topicContent.slice(0, 5000)}
 
-Respond with ONLY this JSON array structure. Make sure "correctAnswer" contains the EXACT STRING TEXT of the correct option, not just "A" or "B":
+INSTRUCTIONS:
+1. Make questions rigorous, practical, and concept-testing.
+2. For questions that benefit from a visual aid (e.g. process flows, decision logic, charts, or structural models), include an optional "diagram" field containing valid Mermaid.js (e.g. graph TD ...) or valid inline SVG (<svg viewBox="0 0 600 240" ...>...</svg>).
+3. "correctAnswer" MUST contain the EXACT STRING TEXT of the correct option.
+
+Respond with ONLY this JSON array structure:
 [
   {
-    "id": "qX",
+    "id": "q1",
     "type": "mcq",
-    "question": "...",
+    "question": "Based on the illustrated mechanism...",
+    "diagram": "graph TD\\n  A[Step 1] --> B{Condition}\\n  B -->|Yes| C[Target Outcome]",
     "options": ["First option", "Second option", "Third option", "Fourth option"],
     "correctAnswer": "First option",
-    "explanation": "..."
+    "explanation": "Detailed explanation of why this answer is correct..."
   }
 ]`,
     },
@@ -453,23 +464,29 @@ export async function generateMockExam(params: {
   const raw = await callDeepSeek([
     {
       role: 'system',
-      content: `You are a professional exam setter. Respond ONLY with a valid JSON array of questions. No preamble.`,
+      content: `You are a university-level exam setter. Respond ONLY with a valid JSON array of questions. No preamble.`,
     },
     {
       role: 'user',
-      content: `Generate a ${params.duration}-minute exam (${count} questions).
+      content: `Generate a comprehensive ${params.duration}-minute exam (${count} questions).
 Spec: ${params.curriculumSpec}
-Content: ${params.subjectContent.slice(0, 6000)}
+Content: ${params.subjectContent.slice(0, 8000)}
 
-Format: JSON array of questions. Make sure "correctAnswer" contains the EXACT STRING TEXT of the correct option, not just a letter. Example:
+INSTRUCTIONS:
+1. Questions should test both core conceptual knowledge and scenario analysis.
+2. For scenario, workflow, or diagnostic questions, include an optional "diagram" field with valid Mermaid.js or inline SVG code.
+3. Make sure "correctAnswer" contains the EXACT STRING TEXT of the correct option.
+
+Format: JSON array of questions:
 [
   {
     "id": "q1",
     "type": "mcq",
-    "question": "What is...",
+    "question": "Examine the process below and determine...",
+    "diagram": "graph TD\\n  A[Trigger] --> B[Processing]\\n  B --> C[Resolution]",
     "options": ["Alpha", "Beta", "Gamma", "Delta"],
     "correctAnswer": "Alpha",
-    "explanation": "..."
+    "explanation": "Thorough explanation of the correct response."
   }
 ]`,
     },

@@ -5,6 +5,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { getTopics } from '@/lib/firebase/firestore';
 import { Btn, Spinner, Tag, F } from '@/components/ui/primitives';
+import { MermaidDiagram, SvgIllustration } from '@/components/DiagramViewer';
 import type { Question } from '@/types';
 
 export default function MockExamPage() {
@@ -232,9 +233,20 @@ export default function MockExamPage() {
             </span>
           </div>
 
-          <h3 style={{ fontSize: 20, color: T.text, fontWeight: 800, lineHeight: 1.45, marginBottom: 28, fontFamily: F.sans }}>
+          <h3 style={{ fontSize: 20, color: T.text, fontWeight: 800, lineHeight: 1.45, marginBottom: q.diagram ? 16 : 28, fontFamily: F.sans }}>
             {q.question}
           </h3>
+
+          {/* Visual Diagram / Illustration in Exam Question */}
+          {q.diagram && (
+            <div style={{ marginBottom: 26 }}>
+              {q.diagram.includes('<svg') ? (
+                <SvgIllustration svgCode={q.diagram} />
+              ) : (
+                <MermaidDiagram chart={q.diagram} />
+              )}
+            </div>
+          )}
 
           <div style={{
             display: 'grid',
