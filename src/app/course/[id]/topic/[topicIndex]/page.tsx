@@ -424,22 +424,51 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
           <span style={{ fontSize: 13, color: T.textSub, fontFamily: F.sans, fontWeight: 700 }}>· {topic.readTime || '10'} MINUTE READ</span>
         </div>
 
-        <h1 style={{ fontSize: 32, color: T.text, marginBottom: 28, fontWeight: 900, lineHeight: 1.25, fontFamily: F.sans, letterSpacing: '-0.6px' }}>
+        <h1 style={{ fontSize: 34, color: T.text, marginBottom: 32, fontWeight: 900, lineHeight: 1.25, fontFamily: F.sans, letterSpacing: '-0.7px' }}>
           {topic.title}
         </h1>
 
-        <div style={{ color: T.textSub, fontSize: 16, lineHeight: 1.9, fontFamily: F.sans }}>
+        <div style={{ color: T.textSub, fontSize: 16, lineHeight: 1.95, fontFamily: F.sans, letterSpacing: '-0.05px' }}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex]}
             components={{
-              h2: ({children}) => <h2 style={{ fontSize: 22, color: T.text, fontWeight: 900, margin: '36px 0 14px', fontFamily: F.sans, letterSpacing: '-0.4px' }}>{children}</h2>,
-              h3: ({children}) => <h3 style={{ fontSize: 18, color: T.teal, fontWeight: 800, margin: '26px 0 10px', fontFamily: F.sans }}>{children}</h3>,
+              h2: ({children}) => (
+                <h2 style={{
+                  fontSize: 23,
+                  color: T.text,
+                  fontWeight: 900,
+                  marginTop: 48,
+                  marginBottom: 16,
+                  paddingBottom: 8,
+                  borderBottom: `1.5px solid ${T.borderMid}`,
+                  fontFamily: F.sans,
+                  letterSpacing: '-0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                }}>
+                  {children}
+                </h2>
+              ),
+              h3: ({children}) => (
+                <h3 style={{
+                  fontSize: 19,
+                  color: T.teal,
+                  fontWeight: 800,
+                  marginTop: 36,
+                  marginBottom: 12,
+                  fontFamily: F.sans,
+                  letterSpacing: '-0.3px',
+                }}>
+                  {children}
+                </h3>
+              ),
               strong: ({children}) => <strong style={{ color: T.text, fontWeight: 800 }}>{children}</strong>,
-              ul: ({children}) => <ul style={{ paddingLeft: 26, marginBottom: 20 }}>{children}</ul>,
-              ol: ({children}) => <ol style={{ paddingLeft: 26, marginBottom: 20 }}>{children}</ol>,
-              li: ({children}) => <li style={{ marginBottom: 8, color: T.textSub }}>{children}</li>,
-              p: ({children}) => <p style={{ marginBottom: 20, lineHeight: 1.9 }}>{children}</p>,
+              ul: ({children}) => <ul style={{ paddingLeft: 28, margin: '20px 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>{children}</ul>,
+              ol: ({children}) => <ol style={{ paddingLeft: 28, margin: '20px 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>{children}</ol>,
+              li: ({children}) => <li style={{ color: T.textSub, lineHeight: 1.85, fontSize: 16 }}>{children}</li>,
+              p: ({children}) => <p style={{ marginBottom: 24, lineHeight: 1.95, fontSize: 16 }}>{children}</p>,
               code: ({children, className, ...props}) => {
                 const match = /language-(\w+)/.exec(className || '');
                 const lang = match ? match[1].toLowerCase() : '';
@@ -457,20 +486,42 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
                   </code>
                 );
               },
-              pre: ({children}) => <div style={{ margin: '16px 0' }}>{children}</div>,
-              blockquote: ({children}) => <blockquote style={{ borderLeft: `4px solid ${T.teal}`, background: T.card2, padding: '16px 22px', borderRadius: '0 20px 20px 0', margin: '24px 0', color: T.text, fontStyle: 'italic', boxShadow: '0 4px 16px rgba(44,24,16,0.03)' }}>{children}</blockquote>,
+              pre: ({children}) => <div style={{ margin: '24px 0' }}>{children}</div>,
+              blockquote: ({children}) => (
+                <blockquote style={{
+                  background: T.card2,
+                  padding: '20px 24px',
+                  borderRadius: '0 20px 20px 0',
+                  margin: '32px 0',
+                  color: T.text,
+                  lineHeight: 1.85,
+                  fontSize: 15.5,
+                  boxShadow: '0 4px 20px rgba(44,24,16,0.03)',
+                  border: `1px solid ${T.border}`,
+                  borderLeft: `4px solid ${T.teal}`,
+                }}>
+                  {children}
+                </blockquote>
+              ),
               img: ({src, alt}) => <SmartImage src={src || ''} alt={alt || ''} T={T} />,
               table: ({children}) => (
-                <div style={{ overflowX: 'auto', margin: '28px 0', borderRadius: 16, border: `1.5px solid ${T.borderMid}`, background: T.card }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 14, fontFamily: F.sans }}>{children}</table>
+                <div style={{
+                  overflowX: 'auto',
+                  margin: '36px 0',
+                  borderRadius: 18,
+                  border: `1.5px solid ${T.borderMid}`,
+                  background: T.card,
+                  boxShadow: '0 4px 24px rgba(44, 24, 16, 0.04)',
+                }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 14.5, fontFamily: F.sans }}>{children}</table>
                 </div>
               ),
-              thead: ({children}) => <thead style={{ background: T.card2, borderBottom: `1.5px solid ${T.borderMid}` }}>{children}</thead>,
+              thead: ({children}) => <thead style={{ background: T.card2, borderBottom: `2px solid ${T.borderMid}` }}>{children}</thead>,
               tbody: ({children}) => <tbody>{children}</tbody>,
-              tr: ({children}) => <tr style={{ borderBottom: `1px solid ${T.border}` }}>{children}</tr>,
-              th: ({children}) => <th style={{ padding: '14px 18px', fontWeight: 800, color: T.text, fontSize: 13, letterSpacing: '0.3px' }}>{children}</th>,
-              td: ({children}) => <td style={{ padding: '14px 18px', color: T.textSub, lineHeight: 1.6 }}>{children}</td>,
-              hr: () => <hr style={{ border: 'none', borderTop: `1.5px solid ${T.borderMid}`, margin: '36px 0' }} />,
+              tr: ({children}) => <tr style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.2s' }}>{children}</tr>,
+              th: ({children}) => <th style={{ padding: '16px 20px', fontWeight: 800, color: T.text, fontSize: 13.5, letterSpacing: '0.4px', textTransform: 'uppercase' }}>{children}</th>,
+              td: ({children}) => <td style={{ padding: '16px 20px', color: T.textSub, lineHeight: 1.7 }}>{children}</td>,
+              hr: () => <hr style={{ border: 'none', borderTop: `1.5px solid ${T.borderMid}`, margin: '44px 0' }} />,
             }}
           >
             {processContent(topic.content)}
