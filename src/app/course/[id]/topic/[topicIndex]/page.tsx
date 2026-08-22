@@ -283,6 +283,32 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
       return `\n\n![Figure ${num}](figure:${num})\n\n`;
     });
 
+    // ── STRUCTURAL MARKDOWN FORMATTING PASS ──
+    // Separate headers from preceding text
+    content = content.replace(/([^\n])\s*(#{1,6}\s+[^\n]+)/g, '$1\n\n$2\n\n');
+
+    // Separate horizontal dividers
+    content = content.replace(/([^\n])\s*(---|___|\*\*\*)\s*([^\n])/g, '$1\n\n---\n\n$3');
+
+    // Separate and format tables (table headers and cramped rows)
+    content = content.replace(/([^\n])\s*(\|[^\n]+\|)/g, '$1\n\n$2');
+    content = content.replace(/\|\s*\|\s*([A-Za-z0-9_*#])/g, '|\n| $1');
+
+    // Separate numbered lists
+    content = content.replace(/([^\n])\s+(\d+\.\s+\*\*[^\n]+?\*\*|\d+\.\s+[A-Z][^\n]+?)/g, '$1\n\n$2');
+    content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+\*\*[^\n]+?\*\*|\d+\.\s+[A-Z][^\n]+?)/g, '$1\n$2');
+
+    // Separate bulleted lists
+    content = content.replace(/([^\n])\s+-\s+(\*\*[^\n]+?\*\*|[A-Z][^\n]+?)/g, '$1\n\n- $2');
+    content = content.replace(/(-\s+[^\n]+?)\s+-\s+(\*\*[^\n]+?\*\*|[A-Z][^\n]+?)/g, '$1\n- $2');
+
+    // Separate blockquotes & Clinical Pearls
+    content = content.replace(/([^\n])\s*(>\s*(?:\*\*[^\n]+?\*\*|[A-Z][^\n]+?))/g, '$1\n\n$2\n\n');
+
+    // Separate observation notes
+    content = content.replace(/([^\n])\s*(\*{0,2}(?:Observation Note|Observe|Note|Clinical Pearl|Key Takeaway):\*{0,2})/gi, '$1\n\n> **$2**');
+
+    // ── DIAGRAM & CODE FENCE PASS ──
     // 1. Separate code fences glued to preceding text
     content = content.replace(/([^\n])(```(?:svg|mermaid))/gi, '$1\n\n$2');
 
@@ -322,6 +348,9 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
 
     // 8. Normalize un-fenced Mermaid ONLY when explicitly marked with `mermaid\n` or `mermaid graph/flowchart` (terminate strictly at blank line)
     content = content.replace(/(?:\n|^)\s*mermaid\s*\n?((?:graph|flowchart|sequenceDiagram|stateDiagram)[\s\S]*?)(?=(?:\n\s*\n|\Z))/gi, '\n\n```mermaid\n$1\n```\n\n');
+
+    // Clean up excessive blank lines
+    content = content.replace(/\n{3,}/g, '\n\n');
 
     return content;
   };
@@ -417,6 +446,17 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
               pre: ({children}) => <div style={{ margin: '16px 0' }}>{children}</div>,
               blockquote: ({children}) => <blockquote style={{ borderLeft: `4px solid ${T.teal}`, background: T.card2, padding: '16px 22px', borderRadius: '0 20px 20px 0', margin: '24px 0', color: T.text, fontStyle: 'italic', boxShadow: '0 4px 16px rgba(44,24,16,0.03)' }}>{children}</blockquote>,
               img: ({src, alt}) => <SmartImage src={src || ''} alt={alt || ''} T={T} />,
+              table: ({children}) => (
+                <div style={{ overflowX: 'auto', margin: '28px 0', borderRadius: 16, border: `1.5px solid ${T.borderMid}`, background: T.card }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 14, fontFamily: F.sans }}>{children}</table>
+                </div>
+              ),
+              thead: ({children}) => <thead style={{ background: T.card2, borderBottom: `1.5px solid ${T.borderMid}` }}>{children}</thead>,
+              tbody: ({children}) => <tbody>{children}</tbody>,
+              tr: ({children}) => <tr style={{ borderBottom: `1px solid ${T.border}` }}>{children}</tr>,
+              th: ({children}) => <th style={{ padding: '14px 18px', fontWeight: 800, color: T.text, fontSize: 13, letterSpacing: '0.3px' }}>{children}</th>,
+              td: ({children}) => <td style={{ padding: '14px 18px', color: T.textSub, lineHeight: 1.6 }}>{children}</td>,
+              hr: () => <hr style={{ border: 'none', borderTop: `1.5px solid ${T.borderMid}`, margin: '36px 0' }} />,
             }}
           >
             {processContent(topic.content)}
