@@ -108,20 +108,34 @@ export function MermaidDiagram({ chart }: { chart: string }) {
       try {
         setError(false);
         const cleanChart = formatMermaidCode(chart);
-
-        // Pre-validate diagram syntax before attempting to render
-        const isValid = await mermaid.parse(cleanChart, { suppressErrors: true }).catch(() => false);
-        if (!isValid) {
-          if (isMounted) setError(true);
-          return;
-        }
-
         const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`;
         const { svg } = await mermaid.render(id, cleanChart);
         if (isMounted) {
           setSvgHtml(svg);
         }
       } catch (err: any) {
+        console.warn('[Mermaid Render Attempt 1 Failed, Trying Simple Flowchart]', err);
+        // Fallback attempt: re-format as clean top-down flowchart
+        try {
+          const rawLines = chart.replace(/^```(?:mermaid)?\s*/i, '').replace(/```$/, '').replace(/^mermaid\s+/i, '').split('\n');
+          const validNodes = rawLines
+            .filter(l => l.includes('-->') || l.includes('---') || l.includes('==>'))
+            .map(l => l.replace(/\[\s*(?:"|')?([^\]]*?)(?:"|')?\s*\]/g, (_, inner) => `["${inner.replace(/"/g, "'").replace(/&/g, 'and').trim()}"]`))
+            .join('\n    ');
+          
+          if (validNodes) {
+            const fallbackChart = `graph TD\n    ${validNodes}`;
+            const id2 = `mermaid-${Math.random().toString(36).substring(2, 9)}`;
+            const { svg: fbSvg } = await mermaid.render(id2, fallbackChart);
+            if (isMounted) {
+              setSvgHtml(fbSvg);
+              return;
+            }
+          }
+        } catch {
+          // secondary fallback failed
+        }
+
         if (isMounted) {
           setError(true);
         }
@@ -218,9 +232,6 @@ export function MermaidDiagram({ chart }: { chart: string }) {
       >
         {error ? (
           <div style={{ textAlign: 'center', padding: '16px', color: T.textSub, width: '100%' }}>
-            <div style={{ fontSize: 13, color: T.amber, fontWeight: 700, marginBottom: 8 }}>
-              ⚠ Diagram Preview (Syntax Fallback)
-            </div>
             <pre style={{
               background: T.card2,
               padding: '12px 16px',
@@ -270,6 +281,11 @@ export function SvgIllustration({ svgCode, alt }: { svgCode: string; alt?: strin
     code = code.replace(/^```(?:svg|xml|html)?\s*/i, '').replace(/```$/, '').trim();
     code = code.replace(/^svg\s+/i, '').trim();
 
+    // Auto-heal missing opening <svg tag if code contains closing </svg>
+    if (!code.includes('<svg') && code.includes('</svg>')) {
+      code = `<svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">\n<text font-si${code}`;
+    }
+
     // Extract actual SVG tag if surrounded by text
     const match = /(<svg[\s\S]*?<\/svg>)/i.exec(code);
     if (match) {
@@ -281,7 +297,7 @@ export function SvgIllustration({ svgCode, alt }: { svgCode: string; alt?: strin
 
     // Ensure responsive attributes
     if (code.includes('<svg') && !code.includes('viewBox')) {
-      code = code.replace(/<svg\s*/i, '<svg viewBox="0 0 800 450" ');
+      code = code.replace(/<svg\s*/i, '<svg viewBox="0 0 700 350" ');
     }
     // Inject responsive width & height styling
     code = code.replace(/<svg\s+/i, '<svg style="width:100%;height:auto;max-height:520px;display:block;margin:0 auto;" ');

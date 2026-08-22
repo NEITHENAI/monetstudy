@@ -283,6 +283,12 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
       return `\n\n![Figure ${num}](figure:${num})\n\n`;
     });
 
+    // Heal legacy or sliced SVG fragments that lost their opening <svg tag
+    content = content.replace(/(?:\n|^)\s*(?:svg\s*)?([^<`\n]*?(?:font-size|font-weight|fill|stroke)[^`]*?<\/svg>)/gi, (match, damagedSvg) => {
+      if (damagedSvg.includes('<svg')) return `\n\n\`\`\`svg\n${damagedSvg.trim()}\n\`\`\`\n\n`;
+      return `\n\n\`\`\`svg\n<svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">\n<text font-si${damagedSvg.trim()}\n\`\`\`\n\n`;
+    });
+
     // Normalize un-fenced SVG: handles complete "<svg...></svg>" and auto-closes truncated "<svg..."
     content = content.replace(/(?:\n|^)\s*(?:svg\s*)?(<svg[\s\S]*?)(?:<\/svg>|(?=\n\n\s*#{1,6}|\n\n\s*[A-Z0-9]|\Z))/gi, (match, svgBody) => {
       if (match.includes('```')) return match;
