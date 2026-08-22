@@ -373,18 +373,17 @@ PEDAGOGICAL TEACHING GUIDELINES:
    - Break down complex mechanisms, formulas, models, or trading rules into crystal-clear steps.
    - Use vivid analogies, real-world examples, and explicitly highlight common student pitfalls/misconceptions.
    - Maintain textbook depth (800–1200 words). Use # Title, ## Core Principles, ### Detailed Breakdown, and **bold** key concepts.
-2. VISUAL DIAGRAMS & ILLUSTRATIONS (MANDATORY):
-   Design and embed at least ONE rich visual illustration that crystallizes the concept:
-   - OPTION A: MERMAID DIAGRAM
-     Format strictly with \`\`\`mermaid on its own line:
+2. VISUAL DIAGRAMS & ILLUSTRATIONS (MULTIPLE HIGH-YIELD ILLUSTRATIONS ENCOURAGED):
+   Embed rich visual illustrations (Mermaid diagrams or standalone SVG vectors) across key sections wherever they crystallize the concept:
+   - Embed 1 to 3 distinct illustrations across different subsections of the lesson (e.g., one flowchart for pathophysiology, one comparison diagram, one decision hierarchy).
+   - Format OPTION A (MERMAID):
 \`\`\`mermaid
 graph TD
     A["Core Input / Premise"] -->|Mechanism| B["Processing / Decision Engine"]
     B --> C["Result / Phase Alpha"]
     B --> D["Result / Phase Beta"]
 \`\`\`
-   - OPTION B: STANDALONE SVG VECTOR ILLUSTRATION
-     Format strictly with \`\`\`svg on its own line:
+   - Format OPTION B (STANDALONE SVG VECTOR):
 \`\`\`svg
 <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">
   <rect width="700" height="350" fill="#f8f9fa" rx="10"/>
@@ -392,10 +391,12 @@ graph TD
   <!-- Vector elements: rect, circle, line, path, text with clean color accents -->
 </svg>
 \`\`\`
-3. CRITICAL CODE FENCE RULES:
+3. CRITICAL CODE FENCE & FORMATTING RULES:
    - ALWAYS place \`\`\`mermaid or \`\`\`svg on its OWN line before the diagram starts.
+   - ALWAYS put each node, connection, and style directive on a SEPARATE line (never cram the whole diagram onto a single line).
+   - ALWAYS close every diagram block with \`\`\` on its own line before continuing with text.
    - ALWAYS complete every SVG with its closing </svg> tag before finishing the code block.
-4. After the diagram, provide a 1-2 sentence observation note highlighting what the student should observe.
+4. After each diagram, provide a 1-2 sentence observation note highlighting what the student should observe.
 
 Start directly with # ${t.title}.`;
 

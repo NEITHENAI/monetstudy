@@ -51,15 +51,21 @@ function formatMermaidCode(raw: string): string {
   let clean = (raw || '').trim().replace(/^```(?:mermaid)?\s*/i, '').replace(/```$/, '').trim();
   clean = clean.replace(/^mermaid\s+/i, '').trim();
 
-  // 1. Repair broken newlines inside brackets [ ... \n ... ]
+  // 1. Separate 'style <Node> ...' onto its own line
+  clean = clean.replace(/\s+(style\s+[A-Za-z0-9_]+\s+[^style\n]+)/g, '\n    $1');
+
+  // 2. Separate graph header (e.g. graph LR, graph TD, flowchart TD) from following nodes
+  clean = clean.replace(/^(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+/i, '$1\n    ');
+
+  // 3. Repair broken newlines inside brackets [ ... \n ... ]
   clean = clean.replace(/\[([^\]]*?)\n+([^\]]*?)\]/g, '[$1 $2]');
 
-  // 2. Separate multiple statements on one line onto distinct lines
-  clean = clean.replace(/\]\s+([A-Za-z0-9_]+)\s*(?:\[|\(|\{|\>|-->|--\>|==>)/g, ']\n    $1');
-  clean = clean.replace(/\)\s+([A-Za-z0-9_]+)\s*(?:\[|\(|\{|\>|-->|--\>|==>)/g, ')\n    $1');
-  clean = clean.replace(/\}\s+([A-Za-z0-9_]+)\s*(?:\[|\(|\{|\>|-->|--\>|==>)/g, '}\n    $1');
+  // 4. Separate multiple statements/nodes crammed on a single line
+  clean = clean.replace(/(\]|"|\)|})\s+([A-Za-z0-9_]+)\s*(?:\[|\(|\{|\>|-->|--\>|==>|-\.->)/g, '$1\n    $2');
+  clean = clean.replace(/(\]|"|\)|})\s+([A-Za-z0-9_]+)\s+([A-Za-z0-9_]+)\s*(?:-->|--\>|==>|-\.->)/g, '$1\n    $2 $3');
+  clean = clean.replace(/\s+([A-Za-z0-9_]+)\s+([A-Za-z0-9_]+)\s*(?:-->|--\>|==>|-\.->)/g, '\n    $1 $2');
 
-  // 3. Process line by line: stop at markdown commentary, sanitize & quote node labels
+  // 5. Process line by line: stop at markdown commentary, sanitize & quote node labels
   const lines = clean.split('\n');
   const sanitizedLines: string[] = [];
 
@@ -68,7 +74,7 @@ function formatMermaidCode(raw: string): string {
     if (!trimmed) continue;
 
     // Stop diagram as soon as markdown commentary or observation text starts
-    if (/^(\*{1,2}|#{1,6}|Observe:|Note:|Explanation:|Figure:|Diagram:|This diagram)/i.test(trimmed)) {
+    if (/^(\*{1,2}|#{1,6}|Observe:|Note:|Observation|Explanation:|Figure:|Diagram:|This diagram)/i.test(trimmed)) {
       break;
     }
 
@@ -83,8 +89,10 @@ function formatMermaidCode(raw: string): string {
 
   clean = sanitizedLines.join('\n').trim();
 
-  // 4. If diagram header (e.g. graph TD) is on same line as first node, split them
-  clean = clean.replace(/^(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+([A-Za-z0-9_]+)/i, '$1\n    $2');
+  // If clean does not start with a recognized diagram type, default to graph TD
+  if (!/^(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap|quadrantChart)/i.test(clean)) {
+    clean = `graph TD\n    ${clean}`;
+  }
 
   return clean;
 }
@@ -222,12 +230,14 @@ export function MermaidDiagram({ chart }: { chart: string }) {
       <div
         ref={containerRef}
         style={{
-          padding: expanded ? '36px 20px' : '24px 16px',
+          padding: expanded ? '32px 16px' : '20px 12px',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
           overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
           minHeight: 140,
+          background: T.name === 'dark' || T.name === 'midnight' ? '#140E0A' : '#FAF5EE',
         }}
       >
         {error ? (
@@ -251,6 +261,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
             className="mermaid-wrapper"
             style={{
               width: '100%',
+              minWidth: expanded ? 700 : '100%',
               display: 'flex',
               justifyContent: 'center',
               transform: expanded ? 'scale(1.15)' : 'none',
@@ -357,14 +368,15 @@ export function SvgIllustration({ svgCode, alt }: { svgCode: string; alt?: strin
       {/* SVG Container */}
       <div
         style={{
-          padding: isZoomed ? '32px 16px' : '20px 16px',
+          padding: isZoomed ? '28px 12px' : '16px 12px',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
           background: T.name === 'dark' || T.name === 'midnight' ? '#140E0A' : '#FAF5EE',
-          transform: isZoomed ? 'scale(1.2)' : 'none',
+          transform: isZoomed ? 'scale(1.15)' : 'none',
           transition: 'transform 0.3s ease',
-          overflow: 'hidden',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
         }}
         dangerouslySetInnerHTML={{ __html: cleanedSvg }}
       />
