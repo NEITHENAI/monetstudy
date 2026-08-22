@@ -283,7 +283,8 @@ export function SvgIllustration({ svgCode, alt }: { svgCode: string; alt?: strin
 
     // Auto-heal missing opening <svg tag if code contains closing </svg>
     if (!code.includes('<svg') && code.includes('</svg>')) {
-      code = `<svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">\n<text font-si${code}`;
+      const prefix = code.startsWith('ze=') ? '<text font-si' : '';
+      code = `<svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">\n${prefix}${code}`;
     }
 
     // Extract actual SVG tag if surrounded by text

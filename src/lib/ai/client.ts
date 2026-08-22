@@ -24,6 +24,10 @@ function cleanMarkdown(raw: string): string {
     content = content.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '').trim();
   }
 
+  // Ensure svg and mermaid code fences have proper newlines after the fence tag
+  content = content.replace(/```svg\s*(<svg[\s\S]*?<\/svg>)\s*```/gi, '```svg\n$1\n```');
+  content = content.replace(/```mermaid\s*((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)[\s\S]*?)```/gi, '```mermaid\n$1\n```');
+
   // Strip <think> blocks
   content = content.replace(/<think>[\s\S]*?<\/think>/gi, '');
   // Strip --- SECTION --- headers and their content blocks (instruction leakage)
@@ -353,33 +357,45 @@ Respond with ONLY valid JSON with this exact structure:
       }
 
       // 3a. Synthesize the Lesson with high-impact Mermaid & SVG diagrams
-      const instructionalText = `Write a premium, comprehensive textbook lesson for: "${t.title}"
+      const instructionalText = `You are an elite academic professor and master visual educator. Your goal is to TEACH this topic thoroughly and comprehensively from first principles to mastery, NOT summarize or abbreviate it.
+
+TOPIC TO TEACH: "${t.title}"
 
 SOURCE MATERIAL:
 ${sourceContext}
 
 ${pageAnalyses ? `VISUAL CONTEXT FROM PDF:\n${pageAnalyses}` : ''}
 ${params.customInstructions ? `\nUSER'S PERSONALISATION NOTES (follow these closely):\n${params.customInstructions}\n` : ''}
-INSTRUCTIONS:
-1. TONE & DEPTH: University textbook quality. Clear, deeply explanatory, and engaging. Use # Title, ## Sections, ### Subsections. Bold key concepts. 600-1000 words.
+
+PEDAGOGICAL TEACHING GUIDELINES:
+1. TEACHING, NOT SUMMARIZING:
+   - Deeply explain the "Why" (underlying theory & intuition) and the "How" (step-by-step application).
+   - Break down complex mechanisms, formulas, models, or trading rules into crystal-clear steps.
+   - Use vivid analogies, real-world examples, and explicitly highlight common student pitfalls/misconceptions.
+   - Maintain textbook depth (800–1200 words). Use # Title, ## Core Principles, ### Detailed Breakdown, and **bold** key concepts.
 2. VISUAL DIAGRAMS & ILLUSTRATIONS (MANDATORY):
-   Design and embed at least ONE rich, intelligent visual illustration that crystallizes the core concept:
-   - OPTION A: MERMAID DIAGRAM (\`\`\`mermaid ... \`\`\`)
-     Use for multi-stage workflows, biochemical/financial cycles, decision trees, timelines, or system hierarchies.
-     Format example:
-     \`\`\`mermaid
-     graph TD
-       A["Primary Input / Stimulus"] -->|Mechanism| B["Key Processing Unit"]
-       B --> C["Outcome Alpha"]
-       B --> D["Outcome Beta"]
-     \`\`\`
-   - OPTION B: STANDALONE SVG VECTOR ILLUSTRATION (\`\`\`svg <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">...</svg> \`\`\`)
-     Use for anatomical/cellular cross-sections, physics force vectors, technical charts, geometry proofs, or infographics.
-     Design tips: Clean rounded rectangles (rx="10"), clear color coding (#C27847, #2ecc71, #e74c3c, #1a237e), large readable text labels, and self-contained vector paths.
+   Design and embed at least ONE rich visual illustration that crystallizes the concept:
+   - OPTION A: MERMAID DIAGRAM
+     Format strictly with \`\`\`mermaid on its own line:
+\`\`\`mermaid
+graph TD
+    A["Core Input / Premise"] -->|Mechanism| B["Processing / Decision Engine"]
+    B --> C["Result / Phase Alpha"]
+    B --> D["Result / Phase Beta"]
+\`\`\`
+   - OPTION B: STANDALONE SVG VECTOR ILLUSTRATION
+     Format strictly with \`\`\`svg on its own line:
+\`\`\`svg
+<svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <rect width="700" height="350" fill="#f8f9fa" rx="10"/>
+  <text x="350" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1a237e">Topic Architecture</text>
+  <!-- Vector elements: rect, circle, line, path, text with clean color accents -->
+</svg>
+\`\`\`
 3. CRITICAL CODE FENCE RULES:
+   - ALWAYS place \`\`\`mermaid or \`\`\`svg on its OWN line before the diagram starts.
    - ALWAYS complete every SVG with its closing </svg> tag before finishing the code block.
-   - ALWAYS enclose diagrams in triple backticks (\`\`\`mermaid or \`\`\`svg).
-4. After the diagram, provide a 1-2 sentence observation note highlighting what the student should notice.
+4. After the diagram, provide a 1-2 sentence observation note highlighting what the student should observe.
 
 Start directly with # ${t.title}.`;
 

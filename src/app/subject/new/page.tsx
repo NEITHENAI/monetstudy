@@ -528,6 +528,36 @@ export default function NewSubjectPage() {
             <div style={{ maxWidth: 440, margin: '0 auto 28px' }}>
               <ProgressBar value={progress} height={8} />
             </div>
+
+            {/* Professional notice for textbooks / large materials */}
+            <div style={{
+              maxWidth: 520, margin: '0 auto',
+              background: T.card2,
+              border: `1px solid ${T.border}`,
+              borderRadius: 20,
+              padding: '16px 20px',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 14,
+            }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 10,
+                background: `${T.teal}18`, color: T.teal,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, flexShrink: 0, fontWeight: 800,
+              }}>
+                ✦
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: T.text, marginBottom: 4, fontFamily: F.sans }}>
+                  Comprehensive Academic Ingestion
+                </div>
+                <div style={{ fontSize: 12, color: T.textSub, lineHeight: 1.6, fontFamily: F.sans }}>
+                  For extensive textbooks and multi-chapter documents, our academic AI conducts in-depth syllabus structuring, first-principles teaching syntheses, and custom vector diagrams for every topic. Large materials take 1–3 minutes to ensure total mastery.
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
