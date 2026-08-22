@@ -283,18 +283,27 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
       return `\n\n![Figure ${num}](figure:${num})\n\n`;
     });
 
-    // 1. Ensure ```svg <svg or ```mermaid graph has newline after fence
+    // 1. Separate code fences glued to preceding text
+    content = content.replace(/([^\n])(```(?:svg|mermaid))/gi, '$1\n\n$2');
+
+    // 2. Remove duplicate nested ```svg fences
+    content = content.replace(/```svg\s*(?:<svg[^>]*>\s*<!--[^>]*-->\s*)?```svg\s*/gi, '```svg\n');
+
+    // 3. Ensure unclosed ```svg blocks are auto-closed after </svg>
+    content = content.replace(/(```svg[\s\S]*?<\/svg>)(?!\s*```)/gi, '$1\n```\n');
+
+    // 4. Ensure ```svg <svg or ```mermaid graph has newline after fence
     content = content.replace(/```svg\s*(<svg[\s\S]*?<\/svg>)\s*```/gi, '\n\n```svg\n$1\n```\n\n');
     content = content.replace(/```mermaid\s+((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)[\s\S]*?)```/gi, '\n\n```mermaid\n$1\n```\n\n');
     content = content.replace(/```mermaid\s+((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap))/gi, '```mermaid\n$1');
 
-    // 2. Ensure unclosed ```mermaid blocks are auto-closed before notes or next sections
-    content = content.replace(/(```mermaid[\s\S]*?)(?=(?:\n\s*(?:Observation Note:|Observe:|Note:|##|###)|\n\s*\n\s*[A-Z]|\Z))/gi, (match) => {
+    // 5. Ensure unclosed ```mermaid blocks are auto-closed before notes or next sections
+    content = content.replace(/(```mermaid[\s\S]*?)(?=(?:\n\s*(?:>|Observation Note:|Observe:|Note:|##|###)|\n\s*\n\s*[A-Z]|\Z))/gi, (match) => {
       if (match.trim().endsWith('```')) return match;
       return `${match.trim()}\n\`\`\`\n\n`;
     });
 
-    // 3. Heal legacy or sliced SVG fragments that lost their opening <svg tag
+    // 6. Heal legacy or sliced SVG fragments that lost their opening <svg tag
     content = content.replace(/(?:\n|^)\s*(?:svg\s*)?((?:ze="\d+"|font-size=|<text|<rect|<circle|<ellipse|<line|<path|<defs|<g)[\s\S]*?<\/svg>)/gi, (match, svgBody) => {
       if (match.includes('```')) return match;
       let clean = svgBody.trim();
@@ -304,14 +313,14 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
       return `\n\n\`\`\`svg\n${clean}\n\`\`\`\n\n`;
     });
 
-    // 4. Normalize standard un-fenced SVG: handles complete "<svg...></svg>" and auto-closes truncated "<svg..."
+    // 7. Normalize standard un-fenced SVG: handles complete "<svg...></svg>" and auto-closes truncated "<svg..."
     content = content.replace(/(?:\n|^)\s*(?:svg\s*)?(<svg[\s\S]*?)(?:<\/svg>|(?=\n\n\s*#{1,6}|\n\n\s*[A-Z0-9]|\Z))/gi, (match, svgBody) => {
       if (match.includes('```')) return match;
       const clean = svgBody.includes('</svg>') ? svgBody.trim() : `${svgBody.trim()}</svg>`;
       return `\n\n\`\`\`svg\n${clean}\n\`\`\`\n\n`;
     });
 
-    // 5. Normalize un-fenced Mermaid ONLY when explicitly marked with `mermaid\n` or `mermaid graph/flowchart` (terminate strictly at blank line)
+    // 8. Normalize un-fenced Mermaid ONLY when explicitly marked with `mermaid\n` or `mermaid graph/flowchart` (terminate strictly at blank line)
     content = content.replace(/(?:\n|^)\s*mermaid\s*\n?((?:graph|flowchart|sequenceDiagram|stateDiagram)[\s\S]*?)(?=(?:\n\s*\n|\Z))/gi, '\n\n```mermaid\n$1\n```\n\n');
 
     return content;
@@ -393,10 +402,10 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
                 const lang = match ? match[1].toLowerCase() : '';
                 const codeContent = String(children || '').replace(/\n$/, '');
 
-                if (lang === 'mermaid') {
+                if (lang === 'mermaid' || /^\s*(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)/i.test(codeContent)) {
                   return <MermaidDiagram chart={codeContent} />;
                 }
-                if (lang === 'svg' || (typeof codeContent === 'string' && codeContent.trim().startsWith('<svg') && codeContent.trim().endsWith('</svg>'))) {
+                if (lang === 'svg' || lang === 'xml' || codeContent.includes('</svg>') || codeContent.includes('<svg')) {
                   return <SvgIllustration svgCode={codeContent} />;
                 }
                 return (

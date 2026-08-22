@@ -288,9 +288,15 @@ export function SvgIllustration({ svgCode, alt }: { svgCode: string; alt?: strin
 
   useEffect(() => {
     let code = (svgCode || '').trim();
-    // Strip markdown wrappers or leading label
-    code = code.replace(/^```(?:svg|xml|html)?\s*/i, '').replace(/```$/, '').trim();
+    // Strip markdown wrappers or leading labels anywhere inside
+    code = code.replace(/```(?:svg|xml|html)?\s*/gi, '').replace(/```/g, '').trim();
     code = code.replace(/^svg\s+/i, '').trim();
+
+    // If duplicate opening <svg tags are present, keep the last clean one
+    if (code.match(/<svg/gi) && (code.match(/<svg/gi)?.length || 0) > 1) {
+      const lastSvgIdx = code.lastIndexOf('<svg');
+      code = code.substring(lastSvgIdx);
+    }
 
     // Auto-heal missing opening <svg tag if code contains closing </svg>
     if (!code.includes('<svg') && code.includes('</svg>')) {
