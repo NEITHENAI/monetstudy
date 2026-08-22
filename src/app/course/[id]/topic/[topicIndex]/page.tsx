@@ -283,16 +283,66 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
       return `\n\n![Figure ${num}](figure:${num})\n\n`;
     });
 
-    // ── STRUCTURAL MARKDOWN FORMATTING PASS ──
+    // ── 1. DIAGRAM & CODE FENCE PASS ──
+    // Separate code fences glued to preceding text
+    content = content.replace(/([^\n])(```(?:svg|mermaid|[a-z]*))/gi, '$1\n\n$2');
+
+    // Remove duplicate nested ```svg fences
+    content = content.replace(/```svg\s*(?:<svg[^>]*>\s*<!--[^>]*-->\s*)?```svg\s*/gi, '```svg\n');
+
+    // Ensure unclosed ```svg blocks are auto-closed after </svg>
+    content = content.replace(/(```svg[\s\S]*?<\/svg>)(?!\s*```)/gi, '$1\n```\n');
+
+    // Ensure ```svg <svg or ```mermaid graph has newline after fence
+    content = content.replace(/```svg\s*(<svg[\s\S]*?<\/svg>)\s*```/gi, '\n\n```svg\n$1\n```\n\n');
+    content = content.replace(/```mermaid\s+((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)[\s\S]*?)```/gi, '\n\n```mermaid\n$1\n```\n\n');
+    content = content.replace(/```mermaid\s+((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap))/gi, '```mermaid\n$1');
+
+    // Ensure unclosed ```mermaid blocks are auto-closed before notes or next sections
+    content = content.replace(/(```mermaid[\s\S]*?)(?=(?:\n\s*(?:>|Observation Note:|Observe:|Note:|##|###)|\n\s*\n\s*[A-Z]|\Z))/gi, (match) => {
+      if (match.trim().endsWith('```')) return match;
+      return `${match.trim()}\n\`\`\`\n\n`;
+    });
+
+    // Heal legacy or sliced SVG fragments that lost their opening <svg tag
+    content = content.replace(/(?:\n|^)\s*(?:svg\s*)?((?:ze="\d+"|font-size=|<text|<rect|<circle|<ellipse|<line|<path|<defs|<g)[\s\S]*?<\/svg>)/gi, (match, svgBody) => {
+      if (match.includes('```')) return match;
+      let clean = svgBody.trim();
+      if (!clean.startsWith('<svg')) {
+        clean = `<svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">\n${clean.startsWith('ze=') ? `<text font-si${clean}` : clean}`;
+      }
+      return `\n\n\`\`\`svg\n${clean}\n\`\`\`\n\n`;
+    });
+
+    // Normalize standard un-fenced SVG: handles complete "<svg...></svg>" and auto-closes truncated "<svg..."
+    content = content.replace(/(?:\n|^)\s*(?:svg\s*)?(<svg[\s\S]*?)(?:<\/svg>|(?=\n\n\s*#{1,6}|\n\n\s*[A-Z0-9]|\Z))/gi, (match, svgBody) => {
+      if (match.includes('```')) return match;
+      const clean = svgBody.includes('</svg>') ? svgBody.trim() : `${svgBody.trim()}</svg>`;
+      return `\n\n\`\`\`svg\n${clean}\n\`\`\`\n\n`;
+    });
+
+    // Normalize un-fenced Mermaid ONLY when explicitly marked with `mermaid\n` or `mermaid graph/flowchart`
+    content = content.replace(/(?:\n|^)\s*mermaid\s*\n?((?:graph|flowchart|sequenceDiagram|stateDiagram)[\s\S]*?)(?=(?:\n\s*\n|\Z))/gi, '\n\n```mermaid\n$1\n```\n\n');
+
+    // ── 2. STRUCTURAL MARKDOWN FORMATTING PASS ──
+    // Separate chained headers: "## Title ### Subtitle" -> "## Title\n\n### Subtitle"
+    content = content.replace(/(#{1,6}\s+[^#\n]+?)(?=\s+#{1,6}\s+)/g, '$1\n\n');
+
     // Separate headers from preceding text
-    content = content.replace(/([^\n])\s*(#{1,6}\s+[^\n]+)/g, '$1\n\n$2\n\n');
+    content = content.replace(/([^\n#])\s+(#{1,6}\s+[^\n]+)/g, '$1\n\n$2\n\n');
+
+    // Separate subheaders glued to following bold text (e.g. "### Defining Obesity **Obesity** is...")
+    content = content.replace(/(#{1,6}\s+[^\n*#]+?)\s+(\*\*[A-Z])/g, '$1\n\n$2');
 
     // Separate horizontal dividers
     content = content.replace(/([^\n])\s*(---|___|\*\*\*)\s*([^\n])/g, '$1\n\n---\n\n$3');
 
-    // Separate and format tables (table headers and cramped rows)
+    // Separate tables from preceding text
     content = content.replace(/([^\n])\s*(\|[^\n]+\|)/g, '$1\n\n$2');
-    content = content.replace(/\|\s*\|\s*([A-Za-z0-9_*#])/g, '|\n| $1');
+
+    // Separate cramped table rows: "| Row 1 | | Row 2 |" -> "| Row 1 |\n| Row 2 |"
+    content = content.replace(/\|\s+(?=\|)/g, '|\n');
+    content = content.replace(/\|\s*\|\s*/g, '|\n| ');
 
     // Separate numbered lists
     content = content.replace(/([^\n])\s+(\d+\.\s+\*\*[^\n]+?\*\*|\d+\.\s+[A-Z][^\n]+?)/g, '$1\n\n$2');
@@ -305,54 +355,13 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
     // Separate blockquotes & Clinical Pearls
     content = content.replace(/([^\n])\s*(>\s*(?:\*\*[^\n]+?\*\*|[A-Z][^\n]+?))/g, '$1\n\n$2\n\n');
 
-    // Separate observation notes
+    // Separate observation notes into clean blockquotes
     content = content.replace(/([^\n])\s*(\*{0,2}(?:Observation Note|Observe|Note|Clinical Pearl|Key Takeaway):\*{0,2})/gi, '$1\n\n> **$2**');
-
-    // ── DIAGRAM & CODE FENCE PASS ──
-    // 1. Separate code fences glued to preceding text
-    content = content.replace(/([^\n])(```(?:svg|mermaid))/gi, '$1\n\n$2');
-
-    // 2. Remove duplicate nested ```svg fences
-    content = content.replace(/```svg\s*(?:<svg[^>]*>\s*<!--[^>]*-->\s*)?```svg\s*/gi, '```svg\n');
-
-    // 3. Ensure unclosed ```svg blocks are auto-closed after </svg>
-    content = content.replace(/(```svg[\s\S]*?<\/svg>)(?!\s*```)/gi, '$1\n```\n');
-
-    // 4. Ensure ```svg <svg or ```mermaid graph has newline after fence
-    content = content.replace(/```svg\s*(<svg[\s\S]*?<\/svg>)\s*```/gi, '\n\n```svg\n$1\n```\n\n');
-    content = content.replace(/```mermaid\s+((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)[\s\S]*?)```/gi, '\n\n```mermaid\n$1\n```\n\n');
-    content = content.replace(/```mermaid\s+((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap))/gi, '```mermaid\n$1');
-
-    // 5. Ensure unclosed ```mermaid blocks are auto-closed before notes or next sections
-    content = content.replace(/(```mermaid[\s\S]*?)(?=(?:\n\s*(?:>|Observation Note:|Observe:|Note:|##|###)|\n\s*\n\s*[A-Z]|\Z))/gi, (match) => {
-      if (match.trim().endsWith('```')) return match;
-      return `${match.trim()}\n\`\`\`\n\n`;
-    });
-
-    // 6. Heal legacy or sliced SVG fragments that lost their opening <svg tag
-    content = content.replace(/(?:\n|^)\s*(?:svg\s*)?((?:ze="\d+"|font-size=|<text|<rect|<circle|<ellipse|<line|<path|<defs|<g)[\s\S]*?<\/svg>)/gi, (match, svgBody) => {
-      if (match.includes('```')) return match;
-      let clean = svgBody.trim();
-      if (!clean.startsWith('<svg')) {
-        clean = `<svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg" width="100%">\n${clean.startsWith('ze=') ? `<text font-si${clean}` : clean}`;
-      }
-      return `\n\n\`\`\`svg\n${clean}\n\`\`\`\n\n`;
-    });
-
-    // 7. Normalize standard un-fenced SVG: handles complete "<svg...></svg>" and auto-closes truncated "<svg..."
-    content = content.replace(/(?:\n|^)\s*(?:svg\s*)?(<svg[\s\S]*?)(?:<\/svg>|(?=\n\n\s*#{1,6}|\n\n\s*[A-Z0-9]|\Z))/gi, (match, svgBody) => {
-      if (match.includes('```')) return match;
-      const clean = svgBody.includes('</svg>') ? svgBody.trim() : `${svgBody.trim()}</svg>`;
-      return `\n\n\`\`\`svg\n${clean}\n\`\`\`\n\n`;
-    });
-
-    // 8. Normalize un-fenced Mermaid ONLY when explicitly marked with `mermaid\n` or `mermaid graph/flowchart` (terminate strictly at blank line)
-    content = content.replace(/(?:\n|^)\s*mermaid\s*\n?((?:graph|flowchart|sequenceDiagram|stateDiagram)[\s\S]*?)(?=(?:\n\s*\n|\Z))/gi, '\n\n```mermaid\n$1\n```\n\n');
 
     // Clean up excessive blank lines
     content = content.replace(/\n{3,}/g, '\n\n');
 
-    return content;
+    return content.trim();
   };
 
   if (loading) return (

@@ -40,6 +40,28 @@ function cleanMarkdown(raw: string): string {
   content = content.replace(/^Start directly with.*$/gm, '');
   // Strip "Source:" or "Context:" metadata lines
   content = content.replace(/^(SOURCE TEXT|SOURCE MATERIAL|SOURCE DIAGRAM|DIAGRAM CATALOG|NEW HARMONIZED|NEW ILLUSTRATION|Concept designed):?.*$/gm, '');
+
+  // ── STRUCTURAL MARKDOWN FORMATTING PASS ──
+  // Separate chained headers: "## Title ### Subtitle" -> "## Title\n\n### Subtitle"
+  content = content.replace(/(#{1,6}\s+[^#\n]+?)(?=\s+#{1,6}\s+)/g, '$1\n\n');
+  // Separate headers from preceding text
+  content = content.replace(/([^\n#])\s+(#{1,6}\s+[^\n]+)/g, '$1\n\n$2\n\n');
+  // Separate subheaders glued to following bold text
+  content = content.replace(/(#{1,6}\s+[^\n*#]+?)\s+(\*\*[A-Z])/g, '$1\n\n$2');
+  // Separate horizontal dividers
+  content = content.replace(/([^\n])\s*(---|___|\*\*\*)\s*([^\n])/g, '$1\n\n---\n\n$3');
+  // Separate tables from preceding text and fix cramped rows
+  content = content.replace(/([^\n])\s*(\|[^\n]+\|)/g, '$1\n\n$2');
+  content = content.replace(/\|\s+(?=\|)/g, '|\n');
+  content = content.replace(/\|\s*\|\s*/g, '|\n| ');
+  // Separate numbered lists and bullet points
+  content = content.replace(/([^\n])\s+(\d+\.\s+\*\*[^\n]+?\*\*|\d+\.\s+[A-Z][^\n]+?)/g, '$1\n\n$2');
+  content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+\*\*[^\n]+?\*\*|\d+\.\s+[A-Z][^\n]+?)/g, '$1\n$2');
+  content = content.replace(/([^\n])\s+-\s+(\*\*[^\n]+?\*\*|[A-Z][^\n]+?)/g, '$1\n\n- $2');
+  content = content.replace(/(-\s+[^\n]+?)\s+-\s+(\*\*[^\n]+?\*\*|[A-Z][^\n]+?)/g, '$1\n- $2');
+  // Separate blockquotes & Clinical Pearls
+  content = content.replace(/([^\n])\s*(>\s*(?:\*\*[^\n]+?\*\*|[A-Z][^\n]+?))/g, '$1\n\n$2\n\n');
+
   // Clean up excessive blank lines
   content = content.replace(/\n{3,}/g, '\n\n');
   return content.trim();
