@@ -24,64 +24,33 @@ function cleanMarkdown(raw: string): string {
     content = content.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '').trim();
   }
 
-  // Ensure svg and mermaid code fences have proper newlines after the fence tag
-  content = content.replace(/```svg\s*(<svg[\s\S]*?<\/svg>)\s*```/gi, '```svg\n$1\n```');
-  content = content.replace(/```mermaid\s*((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)[\s\S]*?)```/gi, '```mermaid\n$1\n```');
-
   // Strip <think> blocks
   content = content.replace(/<think>[\s\S]*?<\/think>/gi, '');
-  // Strip --- SECTION --- headers and their content blocks (instruction leakage)
+  // Strip instruction leakage
   content = content.replace(/---\s*(KNOWLEDGE BASE|CONTEXT|REQUIREMENTS|ASSETS|MEETING POINT)[\s\S]*?---/gi, '');
-  // Strip lines that look like instructions ("1. TONE:", "2. VISUALS:", "3. STRUCTURE:")
   content = content.replace(/^\d+\.\s*(TONE|VISUALS|STRUCTURE|FIGURE MATCHING|QUALITY):.*$/gm, '');
-  // Strip "DO NOT USE", "USE ONLY", "Embed it using" instruction lines
   content = content.replace(/^\s*-\s*(DO NOT USE|USE ONLY|Embed it using|Describe what|ALWAYS embed).*$/gm, '');
-  // Strip "Start directly with" instructions
   content = content.replace(/^Start directly with.*$/gm, '');
-  // Strip "Source:" or "Context:" metadata lines
   content = content.replace(/^(SOURCE TEXT|SOURCE MATERIAL|SOURCE DIAGRAM|DIAGRAM CATALOG|NEW HARMONIZED|NEW ILLUSTRATION|Concept designed):?.*$/gm, '');
 
-  // ── STRUCTURAL MARKDOWN FORMATTING PASS ──
-  // Chained headers (e.g. "## H2 ### H3")
-  content = content.replace(/(#{1,6}\s+[^#\n\r|]+?)(?=\s+#{1,6}\s+)/g, '$1\n\n');
+  // ── CODE FENCE NORMALIZATION ──
+  // Separate code fences glued to preceding text (e.g. "some text```svg" → "some text\n\n```svg")
+  content = content.replace(/([^\n])(```(?:svg|mermaid))/gi, '$1\n\n$2');
+  // Separate closing ``` glued to following headers (e.g. "```### Title" → "```\n\n### Title")
+  content = content.replace(/(```)\s*(#{1,6}\s)/g, '$1\n\n$2');
 
-  // Headers preceded by text (e.g. "...text. ## Title")
-  content = content.replace(/([^\n#|])\s+(#{1,6}\s+[^\n|]+?)(?=\s+\*\*|\s+Because|\s+The|\s+This|\s+In|\s+When|\s+Water|\s+Fat|\s+Autoimmune|\s+\d+\.|\s+-\s+|\n|$)/g, '$1\n\n$2\n\n');
+  // Ensure ```svg fences have proper newline after tag and are closed
+  content = content.replace(/```svg\s*(<svg)/gi, '```svg\n$1');
+  content = content.replace(/(```svg[\s\S]*?<\/svg>)\s*(?!```)/gi, '$1\n```');
 
-  // Subheaders followed by text / bold (e.g. "### Fat-Soluble Vitamins (A, D, E, K) Because...")
-  content = content.replace(/(#{1,6}\s+[^\n*#|]+?)\s+(?=(?:\*\*[A-Z]|Because|This|It|In|When|Water|Fat|Autoimmune|These|The))/g, '$1\n\n');
+  // Ensure ```mermaid fences have proper newline after tag
+  content = content.replace(/```mermaid\s+((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap))/gi, '```mermaid\n$1');
 
-  // Tables:
-  // Separate table start from preceding non-table text
-  content = content.replace(/([.:)])\s+(\| [A-Z*#|-])/g, '$1\n\n$2');
-  // Separate individual table rows: "| Row 1 | | Row 2 |" -> "| Row 1 |\n| Row 2 |"
-  content = content.replace(/\|\s*\|\s*/g, '|\n| ');
-  // Separate table end from following headers or bold labels
-  content = content.replace(/(\|[^\n|]+\|)\s+(#{1,6}\s|\*\*[A-Z])/g, '$1\n\n$2');
+  // Wrap un-fenced <svg>...</svg> blocks in code fences
+  content = content.replace(/(?:^|\n)\s*(<svg[\s\S]*?<\/svg>)\s*(?:\n|$)/gi, '\n\n```svg\n$1\n```\n\n');
 
-  // Bold Section Sub-headers
-  const knownLabels = 'Pathophysiology|Clinical Features|Diagnosis|Treatment|Management|Radiographic Findings|Causes|Common Sites|Laboratory & Radiographic Findings|Risk Factors|Definition & Pathophysiology|Prevention & Treatment|Key Minerals|Water-Soluble Vitamins|Fat-Soluble Vitamins|Defining Obesity|Metabolic Syndrome|Key principles to remember|Clinical Pearl|Observation Note|Note|Takeaway';
-  content = content.replace(new RegExp(`([^\\n|])\\s+(\\*\\*(?:${knownLabels})\\*\\*:\\s*)`, 'gi'), '$1\n\n$2\n');
-
-  // Horizontal dividers
-  content = content.replace(/([^\n])\s*(---|___|\*\*\*)\s*([^\n])/g, '$1\n\n---\n\n$3');
-
-  // Numbered Lists
-  content = content.replace(/([^\n|])\s+(\d+\.\s+\*\*[^\n|]+?\*\*)/g, '$1\n\n$2');
-  content = content.replace(/(\d+\.\s+[^\n|]+?)\s+(\d+\.\s+\*\*[^\n|]+?\*\*)/g, '$1\n$2');
-
-  // Bullet Points
-  content = content.replace(/([^\n|])\s+-\s+(\*\*[^\n|]+?\*\*|[A-Z][^\n|]+?)/g, '$1\n\n- $2');
-  content = content.replace(/(-\s+[^\n|]+?)\s+-\s+(\*\*[^\n|]+?\*\*|[A-Z][^\n|]+?)/g, '$1\n- $2');
-
-  // Blockquotes & Clinical Pearls
-  content = content.replace(/([^\n])\s*(>\s*(?:\*\*[^\n]+?\*\*|[A-Z][^\n]+?))/g, '$1\n\n$2\n\n');
-
-  // Observation notes / callouts
-  content = content.replace(/(?:\s|^)(\*{0,2}(?:Observation Note|Clinical Pearl|Key Takeaway):\*{0,2})/gi, '\n\n> **$1**');
-
-  // Clean up excessive blank lines
-  content = content.replace(/\n{3,}/g, '\n\n');
+  // Clean up excessive blank lines (4+ → 2)
+  content = content.replace(/\n{4,}/g, '\n\n\n');
   return content.trim();
 }
 

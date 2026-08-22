@@ -241,20 +241,34 @@ export function MermaidDiagram({ chart }: { chart: string }) {
         }}
       >
         {error ? (
-          <div style={{ textAlign: 'center', padding: '16px', color: T.textSub, width: '100%' }}>
-            <pre style={{
-              background: T.card2,
-              padding: '12px 16px',
-              borderRadius: 12,
-              fontSize: 12,
-              fontFamily: F.mono,
-              textAlign: 'left',
-              overflowX: 'auto',
-              color: T.text,
-              margin: 0,
-            }}>
-              {chart}
-            </pre>
+          <div style={{ width: '100%', padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 12, maxWidth: '100%' }}>
+              {chart
+                .split('\n')
+                .filter(l => l.includes('-->') || l.includes('---') || l.includes('==>') || /\[.*?\]/.test(l))
+                .map(l => l.replace(/\[\s*(?:"|')?([^\]]*?)(?:"|')?\s*\]/g, '$1').replace(/[A-Za-z0-9_]+\s*(?:-->|--\>|==>|-\.->)\s*/g, '').trim())
+                .filter(Boolean)
+                .slice(0, 8)
+                .map((step, idx, arr) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      background: T.card2,
+                      border: `1.5px solid ${T.borderMid}`,
+                      borderRadius: 14,
+                      padding: '10px 16px',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: T.text,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                      fontFamily: F.sans,
+                      textAlign: 'center',
+                    }}>
+                      {step.replace(/["'{}]/g, '').trim()}
+                    </div>
+                    {idx < arr.length - 1 && <span style={{ color: T.teal, fontWeight: 900, fontSize: 16 }}>→</span>}
+                  </div>
+                ))}
+            </div>
           </div>
         ) : svgHtml ? (
           <div
