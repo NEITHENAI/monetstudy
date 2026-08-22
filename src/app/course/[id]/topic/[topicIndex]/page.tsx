@@ -326,31 +326,35 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
 
     // ── 2. STRUCTURAL MARKDOWN FORMATTING PASS ──
     // Separate chained headers: "## Title ### Subtitle" -> "## Title\n\n### Subtitle"
-    content = content.replace(/(#{1,6}\s+[^#\n]+?)(?=\s+#{1,6}\s+)/g, '$1\n\n');
+    content = content.replace(/(#{1,6}\s+[^#\n\r]+?)(?=\s*#{1,6}\s+)/g, '$1\n\n');
+
+    // Separate subheaders glued to following text or bold keywords (e.g. "### 2.1 Title **Pathophysiology**:")
+    content = content.replace(/(#{1,6}\s+[A-Za-z0-9\s,&()/'":.-]+?)(?=\s+(?:\*\*[A-Z]|\d+\.\s+\*\*|-\s+\*\*|\||\*|The following|Because|This|It|In|When|Key|Characterized|Autoimmune|Vasculitis|Obesity|Nutritional|Under|Metabolic|Acute|Non-inflammatory|A medical|Hyperuricemia|Deposition|Systemic|Bone|Osteonecrosis|Paget|Trauma|Markedly|Bisphosphonates))/g, '$1\n\n');
 
     // Separate headers from preceding text
-    content = content.replace(/([^\n#])\s+(#{1,6}\s+[^\n]+)/g, '$1\n\n$2\n\n');
+    content = content.replace(/([^\n#])\s+(#{1,6}\s+)/g, '$1\n\n$2');
 
-    // Separate subheaders glued to following bold text (e.g. "### Defining Obesity **Obesity** is...")
-    content = content.replace(/(#{1,6}\s+[^\n*#]+?)\s+(\*\*[A-Z])/g, '$1\n\n$2');
+    // Separate bold section sub-headers within paragraphs (e.g. "**Pathophysiology**:", "**Clinical Features**:", "**Diagnosis**:", "**Treatment**:")
+    content = content.replace(/([^\n])\s+(\*\*(?:Pathophysiology|Clinical Features|Diagnosis|Treatment|Management|Radiographic Findings|Causes|Common Sites|Laboratory & Radiographic Findings|Risk Factors|Definition & Pathophysiology|Prevention & Treatment|Key Minerals|Water-Soluble Vitamins|Fat-Soluble Vitamins|Defining Obesity|Metabolic Syndrome|Key principles to remember|Clinical Pearl|Observation Note|Note|Takeaway)\*\*:\s*)/gi, '$1\n\n$2\n');
 
     // Separate horizontal dividers
     content = content.replace(/([^\n])\s*(---|___|\*\*\*)\s*([^\n])/g, '$1\n\n---\n\n$3');
 
     // Separate tables from preceding text
-    content = content.replace(/([^\n])\s*(\|[^\n]+\|)/g, '$1\n\n$2');
+    content = content.replace(/([^\n])\s*(\|[^\n|]+\|[^\n|]+\|)/g, '$1\n\n$2');
 
     // Separate cramped table rows: "| Row 1 | | Row 2 |" -> "| Row 1 |\n| Row 2 |"
     content = content.replace(/\|\s+(?=\|)/g, '|\n');
     content = content.replace(/\|\s*\|\s*/g, '|\n| ');
 
     // Separate numbered lists
-    content = content.replace(/([^\n])\s+(\d+\.\s+\*\*[^\n]+?\*\*|\d+\.\s+[A-Z][^\n]+?)/g, '$1\n\n$2');
-    content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+\*\*[^\n]+?\*\*|\d+\.\s+[A-Z][^\n]+?)/g, '$1\n$2');
+    content = content.replace(/([^\n])\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n\n$2');
+    content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n$2');
+    content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+[A-Z][^\n]+?)/g, '$1\n$2');
 
     // Separate bulleted lists
-    content = content.replace(/([^\n])\s+-\s+(\*\*[^\n]+?\*\*|[A-Z][^\n]+?)/g, '$1\n\n- $2');
-    content = content.replace(/(-\s+[^\n]+?)\s+-\s+(\*\*[^\n]+?\*\*|[A-Z][^\n]+?)/g, '$1\n- $2');
+    content = content.replace(/([^\n])\s+-\s+(\*\*[^\n]+?\*\*|[A-Z])/g, '$1\n\n- $2');
+    content = content.replace(/(-\s+[^\n]+?)\s+-\s+(\*\*[^\n]+?\*\*|[A-Z])/g, '$1\n- $2');
 
     // Separate blockquotes & Clinical Pearls
     content = content.replace(/([^\n])\s*(>\s*(?:\*\*[^\n]+?\*\*|[A-Z][^\n]+?))/g, '$1\n\n$2\n\n');
