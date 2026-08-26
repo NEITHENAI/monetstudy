@@ -51,21 +51,25 @@ function formatMermaidCode(raw: string): string {
   let clean = (raw || '').trim().replace(/^```(?:mermaid)?\s*/i, '').replace(/```$/, '').trim();
   clean = clean.replace(/^mermaid\s+/i, '').trim();
 
-  // 1. Separate 'style <Node> ...' onto its own line
+  // 1. If two adjacent nodes on the same line have NO arrow between them: "A[...] B[...]" -> "A[...] --> B[...]"
+  clean = clean.replace(/(\]|"|\)|})\s+([A-Za-z0-9_]+)\s*(\[|\(|\{)/g, '$1 --> $2$3');
+
+  // 2. Separate 'style <Node> ...' onto its own line
   clean = clean.replace(/\s+(style\s+[A-Za-z0-9_]+\s+[^style\n]+)/g, '\n    $1');
 
-  // 2. Separate graph header (e.g. graph LR, graph TD, flowchart TD) from following nodes
+  // 3. Separate graph header from following nodes
   clean = clean.replace(/^(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+/i, '$1\n    ');
 
-  // 3. Repair broken newlines inside brackets [ ... \n ... ]
+  // 4. Repair broken newlines inside brackets [ ... \n ... ]
   clean = clean.replace(/\[([^\]]*?)\n+([^\]]*?)\]/g, '[$1 $2]');
 
-  // 4. Separate multiple statements/nodes crammed on a single line WITHOUT swallowing the arrow
+  // 5. Separate multiple statements/nodes crammed on a single line WITHOUT swallowing the arrow
   clean = clean.replace(/(\]|"|\)|})\s+([A-Za-z0-9_]+(?:\s*(?:\[|\(|\{|\>|-->|--\>|==>|-\.->|--|~~~)))/g, '$1\n    $2');
 
-  // 5. Process line by line: stop at markdown commentary, sanitize edge labels and node labels
   const lines = clean.split('\n');
   const sanitizedLines: string[] = [];
+  let prevSourceNode = 'A';
+  let prevTargetNode = 'B';
 
   for (const line of lines) {
     let trimmed = line.trim();
@@ -76,9 +80,19 @@ function formatMermaidCode(raw: string): string {
       break;
     }
 
+    // If line starts with an orphan arrow (e.g. "-->|Yes| C[...]"):
+    if (/^(?:-->|--\>|==>|-\.->)\s*/.test(trimmed)) {
+      trimmed = `${prevTargetNode || prevSourceNode} ${trimmed}`;
+    }
+
+    // Extract node IDs from line: e.g. "A[...] --> B[...]" or "C -->|...| D[...]"
+    const sourceMatch = trimmed.match(/^([A-Za-z0-9_]+)\s*(?:\[|\(|\{|\>|-->|--\>)/);
+    if (sourceMatch) prevSourceNode = sourceMatch[1];
+
+    const targetMatch = trimmed.match(/(?:-->|--\>|==>|-\.->)\s*(?:\|[^|]+\|\s*)?([A-Za-z0-9_]+)/);
+    if (targetMatch) prevTargetNode = targetMatch[1];
+
     // A. Sanitize Edge Labels |...|:
-    // Convert problematic symbols inside edge labels:
-    // e.g. |WBC > 50,000/mm³<br/>Gram stain +| -> |"WBC > 50,000/mm³ / Gram stain +"|
     trimmed = trimmed.replace(/(\|)([^|\n]+?)(\|)/g, (_, open, inner, close) => {
       let safeInner = inner
         .replace(/<br\s*\/?>/gi, ' / ')
@@ -91,7 +105,6 @@ function formatMermaidCode(raw: string): string {
     });
 
     // B. Sanitize Node Labels [ ... ]:
-    // Double quote all node text, replace raw double quotes with single quotes, replace & with 'and'
     trimmed = trimmed.replace(/\[\s*(?:"|')?([^\]]*?)(?:"|')?\s*\]/g, (_, inner) => {
       let safeInner = inner
         .replace(/"/g, "'")
@@ -105,7 +118,6 @@ function formatMermaidCode(raw: string): string {
 
   clean = sanitizedLines.join('\n').trim();
 
-  // If clean does not start with a recognized diagram type, default to graph TD
   if (!/^(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap|quadrantChart)/i.test(clean)) {
     clean = `graph TD\n    ${clean}`;
   }
@@ -262,7 +274,14 @@ export function MermaidDiagram({ chart }: { chart: string }) {
               {chart
                 .split('\n')
                 .filter(l => l.includes('-->') || l.includes('---') || l.includes('==>') || /\[.*?\]/.test(l))
-                .map(l => l.replace(/\[\s*(?:"|')?([^\]]*?)(?:"|')?\s*\]/g, '$1').replace(/[A-Za-z0-9_]+\s*(?:-->|--\>|==>|-\.->)\s*/g, '').trim())
+                .map(l => {
+                  let cleaned = l.replace(/^[A-Za-z0-9_]+\s*(?:\[|\(|\{|\>)?/g, '');
+                  cleaned = cleaned.replace(/\[\s*(?:"|')?([^\]]*?)(?:"|')?\s*\]/g, '$1');
+                  cleaned = cleaned.replace(/[A-Za-z0-9_]+\s*(?:-->|--\>|==>|-\.->)\s*(?:\|[^|]+\|\s*)?/g, '');
+                  cleaned = cleaned.replace(/<br\s*\/?>/gi, ' ');
+                  cleaned = cleaned.replace(/["'{}]/g, '').trim();
+                  return cleaned;
+                })
                 .filter(Boolean)
                 .slice(0, 8)
                 .map((step, idx, arr) => (
@@ -279,7 +298,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
                       fontFamily: F.sans,
                       textAlign: 'center',
                     }}>
-                      {step.replace(/["'{}]/g, '').trim()}
+                      {step}
                     </div>
                     {idx < arr.length - 1 && <span style={{ color: T.teal, fontWeight: 900, fontSize: 16 }}>→</span>}
                   </div>
