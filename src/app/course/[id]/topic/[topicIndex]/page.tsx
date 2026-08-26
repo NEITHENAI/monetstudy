@@ -293,14 +293,17 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
     // Ensure unclosed ```svg block ending with </svg> is closed
     content = content.replace(/(```svg[\s\S]*?<\/svg>)\s*(?!```)/gi, '$1\n```\n\n');
 
-    // Normalize bare "mermaid\n"
-    content = content.replace(/(?:^|\n)\s*(?:```(?:mermaid)?)?\s*mermaid\s*\n+((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)[\s\S]*?)(?=\n\s*\n|$)/gi, '\n\n```mermaid\n$1\n```\n\n');
+    // Catch bare inline/un-fenced Mermaid diagrams (e.g. "...prevention. mermaid graph TD..." or "\nmermaid\ngraph TD...")
+    content = content.replace(/(?:^|(?<=[^`\n]))[ \t]*(?:```(?:mermaid)?)?\s*(?:mermaid\s+|\b)(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)([\s\S]*?)(?=(?:\n\s*#{1,6}\s+|\n\s*\*\*[A-Z]|\n\s*>\s*|\n\s*---\s*|\n\s*(?:Observation Note:|Observe:|Clinical Pearl:|Takeaway:)|\n\s*\n\s*[A-Z*#]|\n\s*```|$))/gi, (match, type, body) => {
+      const cleanBody = `${type}${body}`.trim().replace(/```$/, '').trim();
+      return `\n\n\`\`\`mermaid\n${cleanBody}\n\`\`\`\n\n`;
+    });
 
     // Ensure ```mermaid has newline
     content = content.replace(/```mermaid[ \t]+([^\r\n]+)/gi, '```mermaid\n$1');
 
     // Auto-close ```mermaid before next section or $
-    content = content.replace(/(```mermaid[\s\S]*?)(?=(?:\n\s*```mermaid|\n\s*```svg|\n\s*#{1,6}\s+|\n\s*>\s*|\n\s*(?:Observation Note:|Observe:|Clinical Pearl:|Takeaway:)|$))/gi, (match) => {
+    content = content.replace(/(```mermaid[\s\S]*?)(?=(?:\n\s*```mermaid|\n\s*```svg|\n\s*#{1,6}\s+|\n\s*\*\*[A-Z]|\n\s*>\s*|\n\s*---\s*|\n\s*(?:Observation Note:|Observe:|Clinical Pearl:|Takeaway:)|\n\s*\n\s*[A-Z*#]|$))/gi, (match) => {
       const trimmed = match.trim();
       if (trimmed.endsWith('```') && trimmed !== '```mermaid') {
         return `${trimmed}\n\n`;
@@ -336,11 +339,14 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
     content = content.replace(/([^\n#|])\s+(#{1,6}\s+[^#\n]+?)(?=\s+\d+\.\s+|\s+-\s+|\s+---\s+|\n|$)/g, '$1\n\n$2\n\n');
     content = content.replace(/(#{1,6}\s+[A-Z][A-Za-z0-9\s:,'"-]+?)\s+([A-Z][a-z]+(?:\s+[a-z]+){2,})/g, '$1\n\n$2');
 
-    // D. Lists
+    // D. Separate bold subheaders that are glued to preceding text without breaking the description on the same line
+    content = content.replace(/([^\n|])\s+(\*\*[A-Z][A-Za-z0-9\s/&,–—'-]+\*\*:\s*)/g, '$1\n\n$2');
+
+    // E. Lists
     content = content.replace(/([^\n|])\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n\n$2');
     content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n$2');
 
-    // E. Format observation notes / callouts
+    // F. Format observation notes / callouts
     content = content.replace(/(?:\s|^)\*{0,2}(Observation|Observation Note|Clinical Pearl|Key Takeaway):\*{0,2}\s*/gi, '\n\n> **$1:** ');
 
     // ── STEP 4: RESTORE CODE FENCES ──
