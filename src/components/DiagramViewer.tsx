@@ -60,10 +60,8 @@ function formatMermaidCode(raw: string): string {
   // 3. Repair broken newlines inside brackets [ ... \n ... ]
   clean = clean.replace(/\[([^\]]*?)\n+([^\]]*?)\]/g, '[$1 $2]');
 
-  // 4. Separate multiple statements/nodes crammed on a single line
-  clean = clean.replace(/(\]|"|\)|})\s+([A-Za-z0-9_]+)\s*(?:\[|\(|\{|\>|-->|--\>|==>|-\.->)/g, '$1\n    $2');
-  clean = clean.replace(/(\]|"|\)|})\s+([A-Za-z0-9_]+)\s+([A-Za-z0-9_]+)\s*(?:-->|--\>|==>|-\.->)/g, '$1\n    $2 $3');
-  clean = clean.replace(/\s+([A-Za-z0-9_]+)\s+([A-Za-z0-9_]+)\s*(?:-->|--\>|==>|-\.->)/g, '\n    $1 $2');
+  // 4. Separate multiple statements/nodes crammed on a single line WITHOUT swallowing the arrow
+  clean = clean.replace(/(\]|"|\)|})\s+([A-Za-z0-9_]+(?:\s*(?:\[|\(|\{|\>|-->|--\>|==>|-\.->|--|~~~)))/g, '$1\n    $2');
 
   // 5. Process line by line: stop at markdown commentary, sanitize & quote node labels
   const lines = clean.split('\n');
