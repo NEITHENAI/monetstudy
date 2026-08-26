@@ -69,21 +69,28 @@ function cleanMarkdown(raw: string): string {
     return `\n\n%%PROTECTED_BLOCK_${protectedFences.length - 1}%%\n\n`;
   });
 
-  // ── STEP 3: STRUCTURAL TEXT FORMATTING ──
-  // Separate horizontal rules
-  content = content.replace(/([^\n])\s*(---|___|\*\*\*)\s*([^\n])/g, '$1\n\n---\n\n$3');
+  // ── STEP 3: STRUCTURAL TEXT & TABLE FORMATTING ──
+  // A. Fix Markdown Tables:
+  // Separate multiple table rows squished together on one line: "| Row 1 | | Row 2 |" -> split exclusively at "|\s*|"
+  content = content.replace(/\|\s*\|\s*/g, '|\n| ');
+  // Separate table start from preceding non-table text line
+  content = content.replace(/([^\n|])\n+(\|\s*[^|\n]+\|)/g, '$1\n\n$2');
+  // Separate table end from following text / headers
+  content = content.replace(/(\|[^\n|]+\|)\s+(#{1,6}\s+|---|\*\*[A-Z])/g, '$1\n\n$2');
 
-  // Separate headings preceded by text (e.g. "...text. ## Title")
-  content = content.replace(/([^\n#])\s+(#{1,6}\s+[^#\n]+?)(?=\s+\d+\.\s+|\s+-\s+|\s+---\s+|\n|$)/g, '$1\n\n$2\n\n');
+  // B. Separate horizontal rules ONLY when NOT part of a table separator (i.e. not surrounded by |)
+  content = content.replace(/(?:^|\n)[ \t]*(?:---|\*\*\*|___)[ \t]*(?:\n|$)/g, '\n\n---\n\n');
+  content = content.replace(/([^|\n\r])\s+(---|___|\*\*\*)\s*([^|\n\r])/g, '$1\n\n---\n\n$3');
 
-  // Separate subheader followed immediately by sentence (e.g. "### The Diagnostic Formulation The final synthesis...")
+  // C. Headings
+  content = content.replace(/([^\n#|])\s+(#{1,6}\s+[^#\n]+?)(?=\s+\d+\.\s+|\s+-\s+|\s+---\s+|\n|$)/g, '$1\n\n$2\n\n');
   content = content.replace(/(#{1,6}\s+[A-Z][A-Za-z0-9\s:,'"-]+?)\s+([A-Z][a-z]+(?:\s+[a-z]+){2,})/g, '$1\n\n$2');
 
-  // Separate numbered lists glued on a single line
-  content = content.replace(/([^\n])\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n\n$2');
-  content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n$2');
+  // D. Lists
+  content = content.replace(/([^\n|])\s+(\d+\.\s+\*\*[^\n|]+?\*\*)/g, '$1\n\n$2');
+  content = content.replace(/(\d+\.\s+[^\n|]+?)\s+(\d+\.\s+\*\*[^\n|]+?\*\*)/g, '$1\n$2');
 
-  // Format observation notes / callouts
+  // E. Format observation notes / callouts
   content = content.replace(/(?:\s|^)\*{0,2}(Observation|Observation Note|Clinical Pearl|Key Takeaway):\*{0,2}\s*/gi, '\n\n> **$1:** ');
 
   // ── STEP 4: RESTORE CODE FENCES ──
