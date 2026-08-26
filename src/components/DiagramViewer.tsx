@@ -125,11 +125,90 @@ function formatMermaidCode(raw: string): string {
   return clean;
 }
 
+// ─── HELPER: STANDALONE VECTOR SVG FLOWCHART GENERATOR ─────────────
+function generateFallbackSvgFlowchart(chart: string, isDark: boolean): string {
+  const lines = chart.split('\n');
+  const nodeMap = new Map<string, string>();
+  const edgeList: Array<{ from: string; to: string; label: string }> = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || /^(graph|flowchart|style|subgraph|end)/i.test(trimmed)) continue;
+
+    // Match node definitions: A["Label"] or A[Label]
+    const nodeRegex = /([A-Za-z0-9_]+)\s*(?:\[|\(|\{)\s*(?:"|')?([^\]\)\}]+?)(?:"|')?\s*(?:\]|\)|\})/g;
+    let m;
+    while ((m = nodeRegex.exec(trimmed)) !== null) {
+      if (!nodeMap.has(m[1])) {
+        nodeMap.set(m[1], m[2].replace(/<br\s*\/?>/gi, ' ').replace(/["'{}]/g, '').trim());
+      }
+    }
+
+    // Match connections: A --> B or A -->|Label| B
+    const edgeMatch = trimmed.match(/([A-Za-z0-9_]+)\s*(?:-->|--\>|==>|-\.->)\s*(?:\|"?'?([^|]+?)"?'?\|\s*)?([A-Za-z0-9_]+)/);
+    if (edgeMatch) {
+      const from = edgeMatch[1];
+      const label = edgeMatch[2] ? edgeMatch[2].replace(/["']/g, '').trim() : '';
+      const to = edgeMatch[3];
+      edgeList.push({ from, to, label });
+      if (!nodeMap.has(from)) nodeMap.set(from, from);
+      if (!nodeMap.has(to)) nodeMap.set(to, to);
+    }
+  }
+
+  const nodes = Array.from(nodeMap.entries()).map(([id, label]) => ({ id, label }));
+  if (nodes.length === 0) return '';
+
+  const boxW = 280;
+  const boxH = 64;
+  const gapY = 32;
+  const totalH = Math.max(160, nodes.length * (boxH + gapY) + 40);
+  const totalW = 680;
+  const centerX = totalW / 2;
+
+  const bgFill = isDark ? '#140E0A' : '#FAF5EE';
+  const cardFill = isDark ? '#22150E' : '#FFFFFF';
+  const cardStroke = isDark ? '#C27847' : '#8C5338';
+  const textFill = isDark ? '#FAF5EE' : '#2C1810';
+  const arrowStroke = isDark ? '#C27847' : '#8C5338';
+
+  let svg = `<svg viewBox="0 0 ${totalW} ${totalH}" xmlns="http://www.w3.org/2000/svg" width="100%">
+  <defs>
+    <marker id="m_fallback_arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="${arrowStroke}" />
+    </marker>
+  </defs>
+  <rect width="${totalW}" height="${totalH}" rx="16" fill="${bgFill}"/>
+`;
+
+  nodes.forEach((n, idx) => {
+    const y = 24 + idx * (boxH + gapY);
+    const x = centerX - boxW / 2;
+
+    const displayLabel = n.label.length > 36 ? n.label.slice(0, 34) + '...' : n.label;
+
+    svg += `  <g transform="translate(${x}, ${y})">
+    <rect width="${boxW}" height="${boxH}" rx="12" fill="${cardFill}" stroke="${cardStroke}" stroke-width="1.5" />
+    <text x="${boxW / 2}" y="${boxH / 2 + 5}" text-anchor="middle" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-size="12" font-weight="700" fill="${textFill}">
+      ${displayLabel.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+    </text>
+  </g>\n`;
+
+    if (idx < nodes.length - 1) {
+      const lineY1 = y + boxH;
+      const lineY2 = y + boxH + gapY - 2;
+      svg += `  <line x1="${centerX}" y1="${lineY1}" x2="${centerX}" y2="${lineY2}" stroke="${arrowStroke}" stroke-width="2" marker-end="url(#m_fallback_arrow)" />\n`;
+    }
+  });
+
+  svg += `</svg>`;
+  return svg;
+}
+
 // ─── 1. MERMAID DIAGRAM COMPONENT ──────────────────────────────────
 export function MermaidDiagram({ chart }: { chart: string }) {
   const { theme: T } = useTheme();
   const [svgHtml, setSvgHtml] = useState<string>('');
-  const [error, setError] = useState<boolean>(false);
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const isDark = T.name === 'dark' || T.name === 'midnight';
@@ -141,40 +220,23 @@ export function MermaidDiagram({ chart }: { chart: string }) {
 
     const renderChart = async () => {
       if (!chart || !chart.trim()) return;
+      const cleanChart = formatMermaidCode(chart);
+
       try {
-        setError(false);
-        const cleanChart = formatMermaidCode(chart);
-        const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`;
+        const id = `m_chart_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
         const { svg } = await mermaid.render(id, cleanChart);
-        if (isMounted) {
+        if (isMounted && svg) {
           setSvgHtml(svg);
+          return;
         }
       } catch (err: any) {
-        console.warn('[Mermaid Render Attempt 1 Failed, Trying Simple Flowchart]', err);
-        // Fallback attempt: re-format as clean top-down flowchart
-        try {
-          const rawLines = chart.replace(/^```(?:mermaid)?\s*/i, '').replace(/```$/, '').replace(/^mermaid\s+/i, '').split('\n');
-          const validNodes = rawLines
-            .filter(l => l.includes('-->') || l.includes('---') || l.includes('==>'))
-            .map(l => l.replace(/\[\s*(?:"|')?([^\]]*?)(?:"|')?\s*\]/g, (_, inner) => `["${inner.replace(/"/g, "'").replace(/&/g, 'and').trim()}"]`))
-            .join('\n    ');
-          
-          if (validNodes) {
-            const fallbackChart = `graph TD\n    ${validNodes}`;
-            const id2 = `mermaid-${Math.random().toString(36).substring(2, 9)}`;
-            const { svg: fbSvg } = await mermaid.render(id2, fallbackChart);
-            if (isMounted) {
-              setSvgHtml(fbSvg);
-              return;
-            }
-          }
-        } catch {
-          // secondary fallback failed
-        }
+        console.warn('[Mermaid Render Failed, Generating High-Definition SVG Diagram]', err);
+      }
 
-        if (isMounted) {
-          setError(true);
-        }
+      // If Mermaid parser fails, render high-definition built-in vector SVG flowchart
+      if (isMounted) {
+        const fallbackSvg = generateFallbackSvgFlowchart(cleanChart, isDark);
+        setSvgHtml(fallbackSvg);
       }
     };
 
@@ -268,44 +330,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
           background: T.name === 'dark' || T.name === 'midnight' ? '#140E0A' : '#FAF5EE',
         }}
       >
-        {error ? (
-          <div style={{ width: '100%', padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 12, maxWidth: '100%' }}>
-              {chart
-                .split('\n')
-                .filter(l => l.includes('-->') || l.includes('---') || l.includes('==>') || /\[.*?\]/.test(l))
-                .map(l => {
-                  let cleaned = l.replace(/^[A-Za-z0-9_]+\s*(?:\[|\(|\{|\>)?/g, '');
-                  cleaned = cleaned.replace(/\[\s*(?:"|')?([^\]]*?)(?:"|')?\s*\]/g, '$1');
-                  cleaned = cleaned.replace(/[A-Za-z0-9_]+\s*(?:-->|--\>|==>|-\.->)\s*(?:\|[^|]+\|\s*)?/g, '');
-                  cleaned = cleaned.replace(/<br\s*\/?>/gi, ' ');
-                  cleaned = cleaned.replace(/["'{}]/g, '').trim();
-                  return cleaned;
-                })
-                .filter(Boolean)
-                .slice(0, 8)
-                .map((step, idx, arr) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      background: T.card2,
-                      border: `1.5px solid ${T.borderMid}`,
-                      borderRadius: 14,
-                      padding: '10px 16px',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: T.text,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-                      fontFamily: F.sans,
-                      textAlign: 'center',
-                    }}>
-                      {step}
-                    </div>
-                    {idx < arr.length - 1 && <span style={{ color: T.teal, fontWeight: 900, fontSize: 16 }}>→</span>}
-                  </div>
-                ))}
-            </div>
-          </div>
-        ) : svgHtml ? (
+        {svgHtml ? (
           <div
             className="mermaid-wrapper"
             style={{
