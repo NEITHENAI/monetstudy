@@ -33,40 +33,61 @@ function cleanMarkdown(raw: string): string {
   content = content.replace(/^Start directly with.*$/gm, '');
   content = content.replace(/^(SOURCE TEXT|SOURCE MATERIAL|SOURCE DIAGRAM|DIAGRAM CATALOG|NEW HARMONIZED|NEW ILLUSTRATION|Concept designed):?.*$/gm, '');
 
-  // ── CODE FENCE NORMALIZATION ──
-  // 1. Separate opening code fences that are glued directly on the same line to previous text
-  content = content.replace(/([^\r\n`])([ \t]*```(?:mermaid|svg))/gi, '$1\n```\n\n$2');
+  // ── STEP 1: CODE FENCE PRE-CLEAN & NORMALIZATION ──
+  // Separate opening code fences that are glued directly on the same line to previous text
   content = content.replace(/([^\r\n])\s*(```(?:svg|mermaid))/gi, '$1\n\n$2');
 
-  // 2. Ensure ```mermaid has a newline immediately after the word "mermaid"
+  // Ensure ```mermaid has a newline immediately after the word "mermaid"
   content = content.replace(/```mermaid[ \t]+([^\r\n]+)/gi, '```mermaid\n$1');
 
-  // 3. Ensure ```svg has a newline immediately after the word "svg"
+  // Ensure ```svg has a newline immediately after the word "svg"
   content = content.replace(/```svg[ \t]+([^\r\n]+)/gi, '```svg\n$1');
 
-  // 4. Ensure any unclosed ```svg block ending with </svg> is closed with ```
+  // Ensure unclosed ```svg block ending with </svg> is closed with ```
   content = content.replace(/(```svg[\s\S]*?<\/svg>)\s*(?!```)/gi, '$1\n```\n\n');
 
-  // 5. Wrap bare un-fenced <svg>...</svg> blocks in code fences
+  // Wrap bare un-fenced <svg>...</svg> blocks in code fences
   content = content.replace(/(?:\n|^)\s*(?<!```(?:svg|xml)?\s*)(<svg[\s\S]*?<\/svg>)(?!\s*```)/gi, '\n\n```svg\n$1\n```\n\n');
 
-  // 6. Ensure any ```mermaid block has a closing ``` before the next section/heading/diagram/observation or end
-  content = content.replace(/(```mermaid[\s\S]*?)(?=(?:\n\s*```mermaid|\n\s*```svg|\n\s*#{1,6}\s+|\n\s*>\s*|\n\s*(?:Observation Note:|Observe:|Clinical Pearl:|Takeaway:)|\Z))/gi, (match) => {
+  // Ensure any ```mermaid block has a closing ``` before the next section/heading/diagram/observation or end of text ($)
+  content = content.replace(/(```mermaid[\s\S]*?)(?=(?:\n\s*```mermaid|\n\s*```svg|\n\s*#{1,6}\s+|\n\s*>\s*|\n\s*(?:Observation Note:|Observe:|Clinical Pearl:|Takeaway:)|$))/gi, (match) => {
     const trimmed = match.trim();
     if (trimmed.endsWith('```') && trimmed !== '```mermaid') {
       return `${trimmed}\n\n`;
     }
-    return `${trimmed}\n\`\`\`\n\n`;
+    const cleanBody = trimmed.replace(/\.\.+$/, '').trim();
+    return `${cleanBody}\n\`\`\`\n\n`;
   });
 
-  // 7. De-duplicate identical consecutive mermaid or svg blocks
+  // De-duplicate identical consecutive mermaid or svg blocks
   content = content.replace(/(```(?:mermaid|svg)\s*[\s\S]*?```)\s*\n*\s*\1/gi, '$1');
 
-  // 8. Separate closing ``` glued to following headers or bold text
-  content = content.replace(/(```)\s*(#{1,6}\s+|\*\*[A-Z]|>)/g, '$1\n\n$2');
-
-  // 9. Normalize un-fenced Mermaid blocks starting with bare "mermaid\n"
+  // Normalize un-fenced Mermaid blocks starting with bare "mermaid\n"
   content = content.replace(/(?:^|\n)\s*mermaid\s*\n+((?:graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)[\s\S]*?)(?=\n\s*\n|$)/gi, '\n\n```mermaid\n$1\n```\n\n');
+
+  // ── STEP 2: PROTECT ALL CODE FENCES FROM STRUCTURAL TEXT REPLACEMENTS ──
+  const protectedFences: string[] = [];
+  content = content.replace(/```(?:svg|mermaid|[a-z]*)\s*[\s\S]*?```/gi, (match) => {
+    protectedFences.push(match);
+    return `\n\n%%PROTECTED_BLOCK_${protectedFences.length - 1}%%\n\n`;
+  });
+
+  // ── STEP 3: STRUCTURAL MARKDOWN FORMATTING PASS (TEXT ONLY) ──
+  // Separate horizontal rules
+  content = content.replace(/([^\n])\s*(---|___|\*\*\*)\s*([^\n])/g, '$1\n\n---\n\n$3');
+
+  // Separate markdown headings glued to preceding text
+  content = content.replace(/([^\n#])\s+(#{1,6}\s+[^\n]+?)(?=\s+\*\*|\s+[A-Z]|\n|$)/g, '$1\n\n$2\n\n');
+
+  // Separate numbered lists glued on a single line (e.g. "1. **Title** — desc 2. **Title** — desc")
+  content = content.replace(/([^\n])\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n\n$2');
+  content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n$2');
+
+  // Format observation notes / callouts
+  content = content.replace(/(?:\s|^)\*{0,2}(Observation|Observation Note|Clinical Pearl|Key Takeaway):\*{0,2}\s*/gi, '\n\n> **$1:** ');
+
+  // ── STEP 4: RESTORE PROTECTED CODE FENCES ──
+  content = content.replace(/%%PROTECTED_BLOCK_(\d+)%%/g, (_, idx) => protectedFences[parseInt(idx, 10)]);
 
   // Clean up excessive blank lines (4+ → 2)
   content = content.replace(/\n{4,}/g, '\n\n\n');
