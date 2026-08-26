@@ -63,12 +63,12 @@ function formatMermaidCode(raw: string): string {
   // 4. Separate multiple statements/nodes crammed on a single line WITHOUT swallowing the arrow
   clean = clean.replace(/(\]|"|\)|})\s+([A-Za-z0-9_]+(?:\s*(?:\[|\(|\{|\>|-->|--\>|==>|-\.->|--|~~~)))/g, '$1\n    $2');
 
-  // 5. Process line by line: stop at markdown commentary, sanitize & quote node labels
+  // 5. Process line by line: stop at markdown commentary, sanitize edge labels and node labels
   const lines = clean.split('\n');
   const sanitizedLines: string[] = [];
 
   for (const line of lines) {
-    const trimmed = line.trim();
+    let trimmed = line.trim();
     if (!trimmed) continue;
 
     // Stop diagram as soon as markdown commentary or observation text starts
@@ -76,13 +76,31 @@ function formatMermaidCode(raw: string): string {
       break;
     }
 
-    // Automatically double-quote any node text inside square brackets [ ... ] so colons, semicolons, ampersands, and quotes never break syntax
-    let processedLine = line.replace(/\[\s*(?:"|')?([^\]]*?)(?:"|')?\s*\]/g, (_, inner) => {
-      const safe = inner.replace(/"/g, "'").replace(/&/g, 'and').trim();
-      return `["${safe}"]`;
+    // A. Sanitize Edge Labels |...|:
+    // Convert problematic symbols inside edge labels:
+    // e.g. |WBC > 50,000/mm³<br/>Gram stain +| -> |"WBC > 50,000/mm³ / Gram stain +"|
+    trimmed = trimmed.replace(/(\|)([^|\n]+?)(\|)/g, (_, open, inner, close) => {
+      let safeInner = inner
+        .replace(/<br\s*\/?>/gi, ' / ')
+        .replace(/["']/g, '')
+        .replace(/&/g, 'and')
+        .replace(/≥/g, '>=')
+        .replace(/≤/g, '<=')
+        .trim();
+      return `|"${safeInner}"|`;
     });
 
-    sanitizedLines.push(processedLine);
+    // B. Sanitize Node Labels [ ... ]:
+    // Double quote all node text, replace raw double quotes with single quotes, replace & with 'and'
+    trimmed = trimmed.replace(/\[\s*(?:"|')?([^\]]*?)(?:"|')?\s*\]/g, (_, inner) => {
+      let safeInner = inner
+        .replace(/"/g, "'")
+        .replace(/&(?!(?:amp|lt|gt);)/g, 'and')
+        .trim();
+      return `["${safeInner}"]`;
+    });
+
+    sanitizedLines.push(`    ${trimmed}`);
   }
 
   clean = sanitizedLines.join('\n').trim();
