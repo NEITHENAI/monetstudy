@@ -137,6 +137,36 @@ export function sanitizeLessonContent(raw: string): string {
     return `\n\n%%PROTECTED_BLOCK_${protectedFences.length - 1}%%\n\n`;
   });
 
+  // ── STEP 2.5: CATCH REMAINING BARE CONTENT IN UNPROTECTED TEXT ──
+  // After all known fences are protected as %%PROTECTED_BLOCK_N%%, any remaining
+  // "-->" arrow sequences or "<svg>...</svg>" tags in the text are definitively
+  // bare/unfenced content that slipped through Steps 0-1 (e.g. inline within a
+  // paragraph with no double-newline separation).
+
+  // A. Bare mermaid: 3+ "NODE --> NODE" arrow sequences with node brackets [...]
+  content = content.replace(
+    /((?:[A-Za-z][A-Za-z0-9_]*\s*(?:\["[^"]*"\]|\[[^\]]*\])?\s*-->\s*(?:\|"?[^"|]*"?\|\s*)?[A-Za-z][A-Za-z0-9_]*\s*(?:\["[^"]*"\]|\[[^\]]*\])?\s*){3,}(?:\bstyle\s+[A-Za-z][A-Za-z0-9_]*\s+[^\n]*\s*)*)/g,
+    (match) => {
+      if (match.includes('%%PROTECTED_BLOCK_')) return match;
+      const trimmed = match.trim();
+      // Require at least 2 bracket node definitions to avoid false positives
+      const bracketCount = (trimmed.match(/\[[^\]]+\]/g) || []).length;
+      if (bracketCount < 2) return match;
+      protectedFences.push(`\`\`\`mermaid\ngraph TD\n    ${trimmed}\n\`\`\``);
+      return `\n\n%%PROTECTED_BLOCK_${protectedFences.length - 1}%%\n\n`;
+    }
+  );
+
+  // B. Bare SVG: <svg>...</svg> not inside a protected fence
+  content = content.replace(
+    /(?:\bsvg\b\s*)?(<svg[\s\S]*?<\/svg>)/gi,
+    (match, svgContent) => {
+      if (match.includes('%%PROTECTED_BLOCK_')) return match;
+      protectedFences.push(`\`\`\`svg\n${svgContent.trim()}\n\`\`\``);
+      return `\n\n%%PROTECTED_BLOCK_${protectedFences.length - 1}%%\n\n`;
+    }
+  );
+
   // ── STEP 3: STRUCTURAL TEXT & TABLE FORMATTING ──
   // A. Fix Markdown Tables
   content = content.replace(/\|\s*\|\s*/g, '|\n| ');
