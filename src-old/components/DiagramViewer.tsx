@@ -51,43 +51,20 @@ function formatMermaidCode(raw: string): string {
   let clean = (raw || '').trim().replace(/^```(?:mermaid)?\s*/i, '').replace(/```$/, '').trim();
   clean = clean.replace(/^mermaid\s+/i, '').trim();
 
-  // 1. Separate graph header from following nodes — do this FIRST so statement-splitting
-  //    below doesn't have to special-case the header line.
-  clean = clean.replace(/^(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+/i, '$1\n    ');
+  // 1. If two adjacent nodes on the same line have NO arrow between them: "A[...] B[...]" -> "A[...] --> B[...]"
+  clean = clean.replace(/(\]|"|\)|})\s+([A-Za-z0-9_]+)\s*(\[|\(|\{)/g, '$1 --> $2$3');
 
-  // 2. Split independent statements crammed onto a single line, e.g. DeepSeek emitting
-  //    `A["X"] --> C["Y"] B["Z"] --> C D["W"] --> C` all on one line with no newlines.
-  //    A new statement starts at `<id>(optional [..]/(..)/{..}) -->`, UNLESS it's immediately
-  //    preceded (ignoring only whitespace) by an arrow — optionally with an edge label like
-  //    `|Yes|` — since that's a legitimate chain continuation (`A --> B --> C`) and must stay
-  //    on one line. This has to run BEFORE rule 5 below: previously rule 5 (originally rule 1)
-  //    ran first and, seeing two adjacent bracket-closed tokens with no arrow between them
-  //    (which is what every crammed-statement boundary looks like), inserted a FABRICATED
-  //    arrow connecting two nodes that were never meant to be connected — producing a diagram
-  //    that was both malformed AND semantically wrong.
-  clean = clean.replace(
-    /(?<!(?:-->|--\>|==>|-\.->)(?:\|[^|]*\|)?\s{0,30})\b([A-Za-z0-9_]+)((?:\[[^\]]*\]|\([^)]*\)|\{[^}]*\})?)\s*-->/g,
-    (match, id, label) => `\n    ${id}${label} -->`
-  );
-
-  // 3. Separate 'style <Node> ...' onto its own line
+  // 2. Separate 'style <Node> ...' onto its own line
   clean = clean.replace(/\s+(style\s+[A-Za-z0-9_]+\s+[^style\n]+)/g, '\n    $1');
+
+  // 3. Separate graph header from following nodes
+  clean = clean.replace(/^(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+/i, '$1\n    ');
 
   // 4. Repair broken newlines inside brackets [ ... \n ... ]
   clean = clean.replace(/\[([^\]]*?)\n+([^\]]*?)\]/g, '[$1 $2]');
 
-  // 5. If two adjacent nodes are STILL on the same LINE with NO arrow between them, it's now a
-  //    genuinely missing arrow (not a crammed-statement boundary — those were split in step 2)
-  //    — safe to connect them: "A[...] B[...]" -> "A[...] --> B[...]"
-  //    IMPORTANT: uses [ \t] (not \s) deliberately — \s also matches the newline step 2 just
-  //    inserted between separated statements, which would silently re-fuse them with a
-  //    fabricated arrow, undoing the split entirely.
-  clean = clean.replace(/(\]|"|\)|})[ \t]+([A-Za-z0-9_]+)[ \t]*(\[|\(|\{)/g, '$1 --> $2$3');
-
-  // 6. Catch anything rules 2/5 still missed — same adjacency pattern, broader trailing match.
-  //    Same [ \t]-only reasoning as rule 5 — this one only inserts a newline (not an arrow) so
-  //    reaching across an existing newline would be harmless, but keep it same-line for clarity.
-  clean = clean.replace(/(\]|"|\)|})[ \t]+([A-Za-z0-9_]+(?:[ \t]*(?:\[|\(|\{|\>|-->|--\>|==>|-\.->|--|~~~)))/g, '$1\n    $2');
+  // 5. Separate multiple statements/nodes crammed on a single line WITHOUT swallowing the arrow
+  clean = clean.replace(/(\]|"|\)|})\s+([A-Za-z0-9_]+(?:\s*(?:\[|\(|\{|\>|-->|--\>|==>|-\.->|--|~~~)))/g, '$1\n    $2');
 
   const lines = clean.split('\n');
   const sanitizedLines: string[] = [];
@@ -253,19 +230,10 @@ export function MermaidDiagram({ chart }: { chart: string }) {
           return;
         }
       } catch (err: any) {
-        // NOTE: this fallback path is intentionally minimal — plain boxes/arrows,
-        // no color theming beyond card/border colors — as a last resort so the
-        // lesson never shows a blank gap. If you're seeing "basic" diagrams
-        // often, it means Mermaid is failing to parse the cleaned chart more
-        // than expected; this log is here so that's visible instead of silent.
-        console.warn('[MermaidDiagram] mermaid.render() failed — falling back to basic SVG flowchart.', {
-          error: err?.message || err,
-          rawChart: chart,
-          cleanedChart: cleanChart,
-        });
+        console.warn('[Mermaid Render Failed, Generating High-Definition SVG Diagram]', err);
       }
 
-      // If Mermaid parser fails, render the built-in vector SVG flowchart as a last resort.
+      // If Mermaid parser fails, render high-definition built-in vector SVG flowchart
       if (isMounted) {
         const fallbackSvg = generateFallbackSvgFlowchart(cleanChart, isDark);
         setSvgHtml(fallbackSvg);

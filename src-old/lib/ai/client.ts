@@ -1,5 +1,4 @@
 import { chunkText, batchEmbed, retrieveRelevantChunks } from './rag';
-import { sanitizeLessonContent } from '@/lib/content/sanitizeLessonContent';
 
 const POLLINATIONS_BASE = 'https://text.pollinations.ai/openai';
 const DEEPSEEK_BASE = 'https://api.deepseek.com';
@@ -17,7 +16,7 @@ const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 function cleanMarkdown(raw: string): string {
   let content = (raw || '').trim();
-
+  
   // Strip outer ```markdown ... ``` wrapper only if the model wrapped the entire response
   if (content.startsWith('```markdown') && content.endsWith('```')) {
     content = content.replace(/^```markdown\s*/i, '').replace(/\s*```$/, '').trim();
@@ -25,21 +24,90 @@ function cleanMarkdown(raw: string): string {
     content = content.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '').trim();
   }
 
-  // Strip <think> blocks (DeepSeek-specific — raw model artifact, not a formatting issue)
+  // Strip <think> blocks
   content = content.replace(/<think>[\s\S]*?<\/think>/gi, '');
-  // Strip instruction leakage (DeepSeek occasionally echoes fragments of the system/user prompt)
+  // Strip instruction leakage
   content = content.replace(/---\s*(KNOWLEDGE BASE|CONTEXT|REQUIREMENTS|ASSETS|MEETING POINT)[\s\S]*?---/gi, '');
   content = content.replace(/^\d+\.\s*(TONE|VISUALS|STRUCTURE|FIGURE MATCHING|QUALITY):.*$/gm, '');
   content = content.replace(/^\s*-\s*(DO NOT USE|USE ONLY|Embed it using|Describe what|ALWAYS embed).*$/gm, '');
   content = content.replace(/^Start directly with.*$/gm, '');
   content = content.replace(/^(SOURCE TEXT|SOURCE MATERIAL|SOURCE DIAGRAM|DIAGRAM CATALOG|NEW HARMONIZED|NEW ILLUSTRATION|Concept designed):?.*$/gm, '');
 
-  // Everything else — fence detection/repair, table/heading formatting — lives in ONE place now.
-  // See src/lib/content/sanitizeLessonContent.ts. This is the only place this runs; the topic
-  // page no longer re-runs an equivalent pass, so content isn't double-processed anymore.
-  content = sanitizeLessonContent(content);
+  // ── STEP 1: CODE FENCE PRE-CLEAN & NORMALIZATION ──
+  // Clean and wrap any bare SVG blocks (including "svg <svg" or bare "<svg")
+  content = content.replace(/(?:^|\n)\s*(?:```(?:svg|xml)?)?\s*(?:svg\s*)?(<svg[\s\S]*?<\/svg>)\s*(?:```)?/gi, '\n\n```svg\n$1\n```\n\n');
 
-  return content;
+  // Ensure ```svg has newline
+  content = content.replace(/```svg[ \t]+([^\r\n]+)/gi, '```svg\n$1');
+
+  // Ensure unclosed ```svg block ending with </svg> is closed
+  content = content.replace(/(```svg[\s\S]*?<\/svg>)\s*(?!```)/gi, '$1\n```\n\n');
+
+  // Catch bare inline/un-fenced Mermaid diagrams (e.g. "...prevention. mermaid graph TD..." or "\nmermaid\ngraph TD...")
+  content = content.replace(/(?:^|(?<=[^`\n]))[ \t]*(?:```(?:mermaid)?)?\s*(?:mermaid\s+|\b)(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)([\s\S]*?)(?=(?:\n\s*#{1,6}\s+|\n\s*\*\*[A-Z]|\n\s*>\s*|\n\s*---\s*|\n\s*(?:Observation Note:|Observe:|Clinical Pearl:|Takeaway:)|\n\s*\n\s*[A-Z*#]|\n\s*```|$))/gi, (match, type, body) => {
+    const cleanBody = `${type}${body}`.trim().replace(/```$/, '').trim();
+    return `\n\n\`\`\`mermaid\n${cleanBody}\n\`\`\`\n\n`;
+  });
+
+  // Ensure ```mermaid has newline
+  content = content.replace(/```mermaid[ \t]+([^\r\n]+)/gi, '```mermaid\n$1');
+
+  // Auto-close ```mermaid before next section or $
+  content = content.replace(/(```mermaid[\s\S]*?)(?=(?:\n\s*```mermaid|\n\s*```svg|\n\s*#{1,6}\s+|\n\s*\*\*[A-Z]|\n\s*>\s*|\n\s*---\s*|\n\s*(?:Observation Note:|Observe:|Clinical Pearl:|Takeaway:)|\n\s*\n\s*[A-Z*#]|$))/gi, (match) => {
+    const trimmed = match.trim();
+    if (trimmed.endsWith('```') && trimmed !== '```mermaid') {
+      return `${trimmed}\n\n`;
+    }
+    const cleanBody = trimmed.replace(/\.\.+$/, '').trim();
+    return `${cleanBody}\n\`\`\`\n\n`;
+  });
+
+  // De-duplicate identical consecutive blocks
+  content = content.replace(/(```(?:mermaid|svg)\s*[\s\S]*?```)\s*\n*\s*\1/gi, '$1');
+
+  // ── STEP 2: PROTECT CODE FENCES ──
+  const protectedFences: string[] = [];
+  content = content.replace(/```(?:svg|mermaid|[a-z]*)\s*[\s\S]*?```/gi, (match) => {
+    protectedFences.push(match);
+    return `\n\n%%PROTECTED_BLOCK_${protectedFences.length - 1}%%\n\n`;
+  });
+
+  // ── STEP 3: STRUCTURAL TEXT & TABLE FORMATTING ──
+  // A. Fix Markdown Tables:
+  // Separate multiple table rows squished together on one line: "| Row 1 | | Row 2 |" -> split exclusively at "|\s*|"
+  content = content.replace(/\|\s*\|\s*/g, '|\n| ');
+  // Separate table start from preceding non-table text line
+  content = content.replace(/([^\n|])\n+(\|\s*[^|\n]+\|)/g, '$1\n\n$2');
+  // Separate table end from following text / headers
+  content = content.replace(/(\|[^\n|]+\|)\s+(#{1,6}\s+|---|\*\*[A-Z])/g, '$1\n\n$2');
+
+  // B. Separate horizontal rules ONLY when NOT part of a table separator (i.e. not surrounded by |)
+  content = content.replace(/(?:^|\n)[ \t]*(?:---|\*\*\*|___)[ \t]*(?:\n|$)/g, '\n\n---\n\n');
+  content = content.replace(/([^|\n\r])\s+(---|___|\*\*\*)\s*([^|\n\r])/g, '$1\n\n---\n\n$3');
+
+  // C. Headings
+  content = content.replace(/([^\n#|])\s+(#{1,6}\s+[^#\n]+?)(?=\s+\d+\.\s+|\s+-\s+|\s+---\s+|\n|$)/g, '$1\n\n$2\n\n');
+  content = content.replace(/(#{1,6}\s+[A-Z][A-Za-z0-9\s:,'"-]+?)\s+([A-Z][a-z]+(?:\s+[a-z]+){2,})/g, '$1\n\n$2');
+
+  // D. Separate bold subheaders that are glued to preceding text without breaking the description on the same line
+  content = content.replace(/([^\n|])\s+(\*\*[A-Z][A-Za-z0-9\s/&,–—'-]+\*\*:\s*)/g, '$1\n\n$2');
+
+  // E. Lists
+  content = content.replace(/([^\n|])\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n\n$2');
+  content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n$2');
+
+  // F. Format observation notes / callouts
+  content = content.replace(/(?:\s|^)\*{0,2}(Observation|Observation Note|Clinical Pearl|Key Takeaway):\*{0,2}\s*/gi, '\n\n> **$1:** ');
+
+  // ── STEP 4: RESTORE CODE FENCES ──
+  content = content.replace(/%%PROTECTED_BLOCK_(\d+)%%/g, (_, idx) => protectedFences[parseInt(idx, 10)]);
+
+  // Remove stray standalone ``` fences not associated with any block
+  content = content.replace(/(?:\n\s*```\s*)+(?=\n|$)/g, '');
+
+  // Clean up excessive blank lines (4+ → 2)
+  content = content.replace(/\n{4,}/g, '\n\n\n');
+  return content.trim();
 }
 
 async function callGemini(messages: Message[], temperature = 0.7, retries = 3): Promise<string> {

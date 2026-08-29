@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; font-family: 'Plus Jakarta Sans', sans-serif; }
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; background: transparent; }
+::-webkit-scrollbar-thumb { border-radius: 99px; background: rgba(140, 83, 56, 0.18); }
+::-webkit-scrollbar-thumb:hover { background: rgba(140, 83, 56, 0.32); }
+input, textarea { outline: none; }
+input::placeholder, textarea::placeholder { color: #9A8272; }
+
+/* ── Keyframe Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes pulse   { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes floatUp { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(140, 83, 56, 0.15); }
+  50%      { box-shadow: 0 0 28px rgba(140, 83, 56, 0.28); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Utility Classes ── */
+.animate-fade-up  { animation: fadeUp  0.4s cubic-bezier(.22,1,.36,1) forwards; }
+.animate-fade-in  { animation: fadeIn  0.3s ease forwards; }
+.animate-spin-sm  { animation: spin    1s linear infinite; }
+.animate-pulse-sm { animation: pulse   2s ease   infinite; }
+.animate-float    { animation: floatUp 3s ease-in-out infinite; }
+.animate-slide-up { animation: slideUp 0.45s cubic-bezier(.22,1,.36,1) forwards; }
+.animate-scale-in { animation: scaleIn 0.28s cubic-bezier(.22,1,.36,1) forwards; }
+
+.shadow-coffee-sm { box-shadow: 0 2px 8px rgba(44, 24, 16, 0.05); }
+.shadow-coffee    { box-shadow: 0 8px 24px rgba(44, 24, 16, 0.08); }
+.shadow-coffee-lg { box-shadow: 0 16px 40px rgba(44, 24, 16, 0.12); }
+.shadow-dock      { box-shadow: 0 -4px 24px rgba(44, 24, 16, 0.06), 0 1px 3px rgba(44, 24, 16, 0.04); }
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(140, 83, 56, 0.05) 25%, rgba(140, 83, 56, 0.12) 50%, rgba(140, 83, 56, 0.05) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ── Glass Effect ── */
+.glass {
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* ── Card Hover ── */
+.card-hover {
+  transition: all 0.25s cubic-bezier(.22,1,.36,1);
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(44, 24, 16, 0.09);
+}
+
+/* ── Focus Ring ── */
+input:focus, textarea:focus {
+  box-shadow: 0 0 0 3px rgba(140, 83, 56, 0.15);
+}
+
+/* ── Stagger Animations ── */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+
+/* ── Mobile Optimizations ── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* Prevent iOS zoom on input focus */
+@media screen and (max-width: 480px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Ensure touch targets are at least 44px */
+button, a, [role="button"] {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+/* Disable text selection on interactive elements */
+button, nav, [role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Smooth momentum scrolling on iOS */
+[style*="overflow"] {
+  -webkit-overflow-scrolling: touch;
+}

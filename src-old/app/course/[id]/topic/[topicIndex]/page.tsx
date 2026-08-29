@@ -14,7 +14,6 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { sanitizeLessonContent } from '@/lib/content/sanitizeLessonContent';
 
 // ─── SMART IMAGE (handles slow Pollinations generation) ─────────────
 function SmartImage({ src, alt, T }: { src: string; alt: string; T: any }) {
@@ -270,16 +269,11 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
     router.push(`/course/${id}`);
   };
 
-  // Sanitization now lives in sanitizeLessonContent() (single source of truth).
-  // New content is sanitized server-side at generation time (cleanMarkdown -> sanitizeLessonContent).
-  // We ALSO run it client-side here as a safety net because:
-  //   1. Old lessons stored in Firestore before the server-side pipeline may still contain
-  //      raw/unfenced SVG and mermaid code that would show as plain text without this.
-  //   2. The function is idempotent — running it on already-clean content is a no-op.
   const processContent = (raw: string): string => {
     if (!raw) return '';
-    let content = sanitizeLessonContent(raw);
+    let content = raw;
 
+    // Convert PDF page and figure placeholders
     content = content.replace(/\[PAGE_(\d+)\]/g, (_, num) => {
       const url = pageImageUrls[parseInt(num, 10)];
       if (url) return `\n\n![PDF Page ${num}](${url})\n\n`;
@@ -288,6 +282,81 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
     content = content.replace(/\[FIGURE_(\d+)\]/g, (_, num) => {
       return `\n\n![Figure ${num}](figure:${num})\n\n`;
     });
+
+    // ── STEP 1: CODE FENCE PRE-CLEAN & NORMALIZATION ──
+    // Clean and wrap any bare SVG blocks (including "svg <svg" or bare "<svg")
+    content = content.replace(/(?:^|\n)\s*(?:```(?:svg|xml)?)?\s*(?:svg\s*)?(<svg[\s\S]*?<\/svg>)\s*(?:```)?/gi, '\n\n```svg\n$1\n```\n\n');
+
+    // Ensure ```svg has newline
+    content = content.replace(/```svg[ \t]+([^\r\n]+)/gi, '```svg\n$1');
+
+    // Ensure unclosed ```svg block ending with </svg> is closed
+    content = content.replace(/(```svg[\s\S]*?<\/svg>)\s*(?!```)/gi, '$1\n```\n\n');
+
+    // Catch bare inline/un-fenced Mermaid diagrams (e.g. "...prevention. mermaid graph TD..." or "\nmermaid\ngraph TD...")
+    content = content.replace(/(?:^|(?<=[^`\n]))[ \t]*(?:```(?:mermaid)?)?\s*(?:mermaid\s+|\b)(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)([\s\S]*?)(?=(?:\n\s*#{1,6}\s+|\n\s*\*\*[A-Z]|\n\s*>\s*|\n\s*---\s*|\n\s*(?:Observation Note:|Observe:|Clinical Pearl:|Takeaway:)|\n\s*\n\s*[A-Z*#]|\n\s*```|$))/gi, (match, type, body) => {
+      const cleanBody = `${type}${body}`.trim().replace(/```$/, '').trim();
+      return `\n\n\`\`\`mermaid\n${cleanBody}\n\`\`\`\n\n`;
+    });
+
+    // Ensure ```mermaid has newline
+    content = content.replace(/```mermaid[ \t]+([^\r\n]+)/gi, '```mermaid\n$1');
+
+    // Auto-close ```mermaid before next section or $
+    content = content.replace(/(```mermaid[\s\S]*?)(?=(?:\n\s*```mermaid|\n\s*```svg|\n\s*#{1,6}\s+|\n\s*\*\*[A-Z]|\n\s*>\s*|\n\s*---\s*|\n\s*(?:Observation Note:|Observe:|Clinical Pearl:|Takeaway:)|\n\s*\n\s*[A-Z*#]|$))/gi, (match) => {
+      const trimmed = match.trim();
+      if (trimmed.endsWith('```') && trimmed !== '```mermaid') {
+        return `${trimmed}\n\n`;
+      }
+      const cleanBody = trimmed.replace(/\.\.+$/, '').trim();
+      return `${cleanBody}\n\`\`\`\n\n`;
+    });
+
+    // De-duplicate identical consecutive blocks
+    content = content.replace(/(```(?:mermaid|svg)\s*[\s\S]*?```)\s*\n*\s*\1/gi, '$1');
+
+    // ── STEP 2: PROTECT CODE FENCES ──
+    const protectedFences: string[] = [];
+    content = content.replace(/```(?:svg|mermaid|[a-z]*)\s*[\s\S]*?```/gi, (match) => {
+      protectedFences.push(match);
+      return `\n\n%%PROTECTED_BLOCK_${protectedFences.length - 1}%%\n\n`;
+    });
+
+    // ── STEP 3: STRUCTURAL TEXT & TABLE FORMATTING ──
+    // A. Fix Markdown Tables:
+    // Separate multiple table rows squished together on one line: "| Row 1 | | Row 2 |" -> split exclusively at "|\s*|"
+    content = content.replace(/\|\s*\|\s*/g, '|\n| ');
+    // Separate table start from preceding non-table text line
+    content = content.replace(/([^\n|])\n+(\|\s*[^|\n]+\|)/g, '$1\n\n$2');
+    // Separate table end from following text / headers
+    content = content.replace(/(\|[^\n|]+\|)\s+(#{1,6}\s+|---|\*\*[A-Z])/g, '$1\n\n$2');
+
+    // B. Separate horizontal rules ONLY when NOT part of a table separator (i.e. not surrounded by |)
+    content = content.replace(/(?:^|\n)[ \t]*(?:---|\*\*\*|___)[ \t]*(?:\n|$)/g, '\n\n---\n\n');
+    content = content.replace(/([^|\n\r])\s+(---|___|\*\*\*)\s*([^|\n\r])/g, '$1\n\n---\n\n$3');
+
+    // C. Headings
+    content = content.replace(/([^\n#|])\s+(#{1,6}\s+[^#\n]+?)(?=\s+\d+\.\s+|\s+-\s+|\s+---\s+|\n|$)/g, '$1\n\n$2\n\n');
+    content = content.replace(/(#{1,6}\s+[A-Z][A-Za-z0-9\s:,'"-]+?)\s+([A-Z][a-z]+(?:\s+[a-z]+){2,})/g, '$1\n\n$2');
+
+    // D. Separate bold subheaders that are glued to preceding text without breaking the description on the same line
+    content = content.replace(/([^\n|])\s+(\*\*[A-Z][A-Za-z0-9\s/&,–—'-]+\*\*:\s*)/g, '$1\n\n$2');
+
+    // E. Lists
+    content = content.replace(/([^\n|])\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n\n$2');
+    content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n$2');
+
+    // F. Format observation notes / callouts
+    content = content.replace(/(?:\s|^)\*{0,2}(Observation|Observation Note|Clinical Pearl|Key Takeaway):\*{0,2}\s*/gi, '\n\n> **$1:** ');
+
+    // ── STEP 4: RESTORE CODE FENCES ──
+    content = content.replace(/%%PROTECTED_BLOCK_(\d+)%%/g, (_, idx) => protectedFences[parseInt(idx, 10)]);
+
+    // Remove stray standalone ``` fences not associated with any block
+    content = content.replace(/(?:\n\s*```\s*)+(?=\n|$)/g, '');
+
+    // Clean excessive blank lines
+    content = content.replace(/\n{4,}/g, '\n\n\n');
 
     return content.trim();
   };
