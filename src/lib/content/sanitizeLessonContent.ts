@@ -29,14 +29,22 @@ export function sanitizeLessonContent(raw: string): string {
   if (!raw) return '';
   let content = raw;
 
-  // ── STEP 0: DETECT BARE MERMAID ARROW SEQUENCES ──
+  // ── STEP 0: NORMALIZE INVALID NODE IDENTIFIERS & DETECT BARE MERMAID ──
+  // Separate markdown callouts, headings, or horizontal rules that are glued on the same line
+  content = content.replace(/([^\n])\s+(>\s*\*\*[A-Z])/g, '$1\n\n$2');
+  content = content.replace(/([^\n])\s+(#{1,6}\s+[A-Z0-9])/g, '$1\n\n$2');
+  content = content.replace(/([^\n])\s+(---|\*\*\*)\s+/g, '$1\n\n$2\n\n');
+
+  // Mermaid does not permit slashes in unquoted node identifiers (e.g. S/R["..."] or S/R -->).
+  // Normalize S/R to S_R in node positions outside of labels so Mermaid doesn't syntax error.
+  content = content.replace(/\b([A-Za-z0-9_]+)\/([A-Za-z0-9_]+)\b(?=\s*(?:\[|\(|\{|\>|-->|--\>|==>))/g, '$1_$2');
+
   // DeepSeek sometimes outputs mermaid node/edge definitions without the required
   // "graph TD" header. These blocks contain multiple "-->" arrows and node
   // definitions [...] but aren't detected by the standard mermaid regex (Step 1)
   // that requires a "graph TD|flowchart TD|..." keyword. We split into paragraphs,
   // detect those blocks by counting arrows + brackets, and wrap them in a mermaid
-  // fence with "graph TD" prepended — so the standard detector (and Mermaid.js
-  // itself) can handle them downstream.
+  // fence with "graph TD" prepended.
   const blocks = content.split(/(\n{2,})/);
   content = blocks.map(block => {
     const trimmed = block.trim();
@@ -57,49 +65,24 @@ export function sanitizeLessonContent(raw: string): string {
   }).join('');
 
   // ── STEP 1: CODE FENCE PRE-CLEAN & NORMALIZATION ──
-  // Normalize any EXISTING ```svg / ```mermaid markers to have a real newline after them
-  // FIRST — before trying to detect bare/unmarked diagrams below. This ordering matters: a
-  // marker like "```mermaid graph TD ..." (space, not newline, no closing fence) still LOOKS
-  // unmarked to the bare-diagram detector, which doesn't special-case "the marker is right
-  // there but just malformed" — so it would wrap the diagram content a SECOND time and leave
-  // the original marker orphaned in front of it (visible as a doubled ```mermaid in output).
   content = content.replace(/```svg[ \t]+([^\r\n]+)/gi, '```svg\n$1');
   content = content.replace(/```mermaid[ \t]+([^\r\n]+)/gi, '```mermaid\n$1');
 
-  // Close an already-opened ```svg block FIRST, before attempting bare-wrap below — this must
-  // run first so that, by the time bare-wrap runs, anything with a real opening marker is
-  // already a complete pair and correctly recognized as "already fenced" (see the lookbehind
-  // in the next step). The lookahead here is deliberately `(?!\s*```)` as ONE atomic assertion
-  // rather than a consumed `\s*` followed by a separate check — `\s*` backtracking to zero
-  // characters would otherwise let the check trivially pass right before a real closing fence
-  // that's just one newline away, marking an already-closed block as "still open".
+  // Close an already-opened ```svg block FIRST
   content = content.replace(/(```svg[\s\S]*?<\/svg>)(?!\s*```)/gi, '$1\n```\n\n');
 
-  // Wrap any bare SVG blocks — including "svg <svg...>" appearing mid-sentence with no
-  // leading newline at all (DeepSeek frequently runs a diagram trigger straight into
-  // surrounding prose) or a totally unfenced "<svg...>". No leading-newline requirement here
-  // (unlike a plain `(?:^|\n)` anchor) is deliberate; the lookbehind below is what prevents
-  // this from re-wrapping content that already has a proper ```svg marker — it checks for an
-  // existing "```" optionally followed by "svg" and whitespace immediately behind the match,
-  // which correctly blocks re-matching even when the match would otherwise start AFTER the
-  // pre-existing "svg" word (i.e. from `<svg` directly), not just immediately after the marker.
+  // Ensure </svg> tag is separated from trailing text or observation note
+  content = content.replace(/(<\/svg>)([ \t]*[^\n`\s<])/gi, '$1\n\n$2');
+
+  // Wrap any bare SVG blocks
   content = content.replace(
     /(?<!```(?:svg)?\s{0,10})(?:\bsvg\b\s*)?(<svg[\s\S]*?<\/svg>)/gi,
     '\n\n```svg\n$1\n```\n\n'
   );
 
-  // Terminators that don't require a leading newline — needed because DeepSeek sometimes runs
-  // a diagram's last line straight into the next section with just a space, no newline at all.
-  // Every OTHER terminator below requires "\n" first, so in that case none of them would ever
-  // match and the lazy match would run away, swallowing the observation note, headings, tables,
-  // and even a second diagram into one giant broken mermaid block. These are chosen to be very
-  // unlikely to appear inside real mermaid syntax: a bold callout keyword, a heading, the bare
-  // svg trigger, or a markdown table row.
   const STRONG_TERMINATORS = '\\*\\*(?:Observation|Observation Note|Observe|Clinical Pearl|Key Takeaway|Takeaway|Note)\\b|#{1,6}\\s+[A-Z]|\\bsvg\\s*<svg|\\|[^|\\n]*\\|[^|\\n]*\\|';
 
-  // Catch bare / un-fenced Mermaid diagrams (e.g. "...prevention. mermaid graph TD..." ) — by
-  // this point anything that already had a ```mermaid marker has a real newline after it, so
-  // this correctly leaves those alone and only wraps genuinely bare/unmarked diagrams.
+  // Catch bare / un-fenced Mermaid diagrams
   content = content.replace(
     new RegExp(
       '(?:^|(?<=[^`\\n]))(?<!```mermaid)[ \\t]*(?:```(?:mermaid)?)?\\s*(?:mermaid\\s+|\\b)(graph\\s+(?:TD|TB|BT|RL|LR)|flowchart\\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)([\\s\\S]*?)(?=(?:\\n\\s*#{1,6}\\s+|\\n\\s*\\*\\*[A-Z]|\\n\\s*>\\s*|\\n\\s*---\\s*|\\n\\s*(?:Observation Note:|Observe:|Clinical Pearl:|Takeaway:)|\\n\\s*\\n\\s*[A-Z*#]|\\n\\s*```|' + STRONG_TERMINATORS + '|$))',
@@ -127,7 +110,7 @@ export function sanitizeLessonContent(raw: string): string {
     }
   );
 
-  // De-duplicate identical consecutive blocks (DeepSeek occasionally repeats a diagram)
+  // De-duplicate identical consecutive blocks
   content = content.replace(/(```(?:mermaid|svg)\s*[\s\S]*?```)\s*\n*\s*\1/gi, '$1');
 
   // ── STEP 2: PROTECT CODE FENCES from the text-formatting passes below ──
@@ -138,18 +121,16 @@ export function sanitizeLessonContent(raw: string): string {
   });
 
   // ── STEP 2.5: CATCH REMAINING BARE CONTENT IN UNPROTECTED TEXT ──
-  // After all known fences are protected as %%PROTECTED_BLOCK_N%%, any remaining
-  // "-->" arrow sequences or "<svg>...</svg>" tags in the text are definitively
-  // bare/unfenced content that slipped through Steps 0-1 (e.g. inline within a
-  // paragraph with no double-newline separation).
+  // Separate glued heading from bare diagram or arrow FIRST
+  content = content.replace(/(#{1,6}\s+[^#\n]+?)\s+([A-Za-z0-9_/]+\s*(?:\[[^\]]*\])?\s*-->)/g, '$1\n\n$2');
+  content = content.replace(/(#{1,6}\s+[^#\n]+?)\s+((?:\bsvg\b\s*)?<svg)/gi, '$1\n\n$2');
 
   // A. Bare mermaid: 3+ "NODE --> NODE" arrow sequences with node brackets [...]
   content = content.replace(
-    /((?:[A-Za-z][A-Za-z0-9_]*\s*(?:\["[^"]*"\]|\[[^\]]*\])?\s*-->\s*(?:\|"?[^"|]*"?\|\s*)?[A-Za-z][A-Za-z0-9_]*\s*(?:\["[^"]*"\]|\[[^\]]*\])?\s*){3,}(?:\bstyle\s+[A-Za-z][A-Za-z0-9_]*\s+[^\n]*\s*)*)/g,
+    /((?:[A-Za-z][A-Za-z0-9_/]*\s*(?:\["[^"]*"\]|\[[^\]]*\])?\s*-->\s*(?:\|"?[^"|]*"?\|\s*)?[A-Za-z][A-Za-z0-9_/]*\s*(?:\["[^"]*"\]|\[[^\]]*\])?\s*){3,}(?:\bstyle\s+[A-Za-z][A-Za-z0-9_/]*\s+[^\n]*\s*)*)/g,
     (match) => {
       if (match.includes('%%PROTECTED_BLOCK_')) return match;
       const trimmed = match.trim();
-      // Require at least 2 bracket node definitions to avoid false positives
       const bracketCount = (trimmed.match(/\[[^\]]+\]/g) || []).length;
       if (bracketCount < 2) return match;
       protectedFences.push(`\`\`\`mermaid\ngraph TD\n    ${trimmed}\n\`\`\``);
@@ -177,39 +158,77 @@ export function sanitizeLessonContent(raw: string): string {
   content = content.replace(/(?:^|\n)[ \t]*(?:---|\*\*\*|___)[ \t]*(?:\n|$)/g, '\n\n---\n\n');
   content = content.replace(/([^|\n\r])\s+(---|___|\*\*\*)\s*([^|\n\r])/g, '$1\n\n---\n\n$3');
 
-  // C. Headings
-  content = content.replace(/([^\n#|])\s+(#{1,6}\s+[^#\n]+?)(?=\s+\d+\.\s+|\s+-\s+|\s+---\s+|\n|$)/g, '$1\n\n$2\n\n');
-  content = content.replace(/(#{1,6}\s+[A-Z][A-Za-z0-9\s:,'"-]+?)\s+([A-Z][a-z]+(?:\s+[a-z]+){2,})/g, '$1\n\n$2');
+  // C. Headings: ensure each heading starts on its own line
+  content = content.replace(/([^\n#|])\s+(#{1,6}\s+)/g, '$1\n\n$2');
+  content = content.replace(/([^\n#|])\s+(#{1,6}\s+)/g, '$1\n\n$2');
+
+  // C2. CRITICAL: Separate headings from glued paragraph sentences that follow on the same line!
+  // DeepSeek often outputs "### Title From the source material..." without inserting a newline,
+  // which causes CommonMark to treat the entire paragraph as a giant <h3> header.
+  // Case 1: Heading ends with quotes, colon, question, exclamation, or key topic noun, followed by prose
+  content = content.replace(
+    /(#{1,6}\s+[^#\n]{3,80}?(?:["')?!:]|\b(?:Approach|Framework|Strategy|System|Method|Model|Principle|Analysis|Overview|Introduction|Mechanics|Anatomy|Rules|Setup|Trigger|Pattern|Breakout|Confirmation|Theory|Summary|Conclusion|Execution|Guide|Checklist)\b))\s+([A-Z][a-z]+(?:\s+[a-z]+){2,})/g,
+    '$1\n\n$2'
+  );
+
+  // Case 2: Heading followed by common sentence openers (e.g. "From the...", "This is...", "The true...")
+  content = content.replace(
+    /(#{1,6}\s+[^#\n]{3,80}?)\s+((?:From|In|The|This|These|That|Notice|When|As|According|Here|To|If|It|We|You)\s+(?:the|this|that|a|an|source|true|is|are|we|can|will|should|must|first|critical|key)\b[^\n]*)/g,
+    '$1\n\n$2'
+  );
+
+  // Case 3: Heading followed by bold text (e.g. '### Title **"A pattern...' or '### Title **Bold**')
+  content = content.replace(
+    /(#{1,6}\s+[^#\n]{3,80}?)\s+(\*\*[^\n]+?\*\*)/g,
+    '$1\n\n$2'
+  );
+
+  // Case 4: Heading ending with a period followed by a capitalized sentence
+  content = content.replace(
+    /(#{1,6}\s+[^#\n]{3,60}?\.)\s+([A-Z][a-z]+)/g,
+    '$1\n\n$2'
+  );
+
+  // Case 5: Numbered headings followed by body text on the same line
+  // e.g. "### 1. Trend Indicators Trend indicators are designed..."
+  // e.g. "### 2. Momentum Indicators While trend indicators tell you..."
+  content = content.replace(
+    /(#{1,6}\s+\d+\.\s+[A-Z][A-Za-z0-9]*(?:\s+(?:and|&|or|of|in|to|for|the|vs\.?|[A-Z][A-Za-z0-9]*)){0,4})\s+([A-Z][a-z]+(?:\s+[a-z]+|\s+[A-Z][a-z]+){2,})/g,
+    '$1\n\n$2'
+  );
+
+  // Case 6: Ensure horizontal rules (---) glued to following headings or prose get separated
+  // e.g. "health. --- ### 1. Trend Indicators"
+  content = content.replace(/(---|\*\*\*|___)\s+(#{1,6}\s+|[A-Z])/g, '$1\n\n$2');
 
   // D. Separate bold subheaders glued to preceding text
-  content = content.replace(/([^\n|])\s+(\*\*[A-Z][A-Za-z0-9\s/&,–—'-]+\*\*:\s*)/g, '$1\n\n$2');
+  content = content.replace(/([^\n|])\s+(\*\*[A-Z][A-Za-z0-9\s/&,–—'"-]+\*\*:\s*)/g, '$1\n\n$2');
 
-  // E. Lists
+  // E. Numbered lists with bold items
   content = content.replace(/([^\n|])\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n\n$2');
   content = content.replace(/(\d+\.\s+[^\n]+?)\s+(\d+\.\s+\*\*[^\n]+?\*\*)/g, '$1\n$2');
 
-  // F. Format observation notes / callouts. Negative lookbehind (?<!>) is deliberate: without
-  //    it, running this on already-formatted "> **Key Takeaway:** ..." text a second time would
-  //    match again (the space after "> " still satisfies the leading \s) and insert a second,
-  //    broken blockquote prefix — this makes the whole function safe to run more than once.
-  content = content.replace(/(?<!>)(?:\s|^)\*{0,2}(Observation|Observation Note|Clinical Pearl|Key Takeaway):\*{0,2}\s*/gi, '\n\n> **$1:** ');
+  // F. Format observation notes / callouts — expanded keyword list
+  content = content.replace(/(?<!>)(?:\s|^)\*{0,2}(Observation|Observation Note|Clinical Pearl|Key Takeaway|Key Insight|Analogy|Important Note|Note|Takeaway|Common Pitfall|Warning|Remember|Tip|Example|Definition):\*{0,2}\s*/gi, '\n\n> **$1:** ');
+
+  // G. Blockquotes: ensure > **Bold** patterns start on their own line
+  content = content.replace(/([^\n|>])\s+(>\s+\*\*[A-Z])/g, '$1\n\n$2');
+
+  // H. Bullet list items: ensure both asterisk (* **) and hyphen (- **) patterns start on their own line
+  content = content.replace(/([^\n|*])\s+(\*\s+\*\*[A-Z])/g, '$1\n\n$2');
+  content = content.replace(/(\*\*[^*\n]*?)\s+(\*\s+\*\*[A-Z])/g, '$1\n$2');
+  content = content.replace(/([^\n|\-])\s+(-\s+\*\*[A-Z])/g, '$1\n\n$2');
+  content = content.replace(/(\*\*[^*\n]*?)\s+(-\s+\*\*[A-Z])/g, '$1\n$2');
 
   // ── STEP 4: RESTORE CODE FENCES ──
   content = content.replace(/%%PROTECTED_BLOCK_(\d+)%%/g, (_, idx) => protectedFences[parseInt(idx, 10)]);
 
-  // Remove a genuinely orphaned/unpaired ``` fence (e.g. DeepSeek started a code block near
-  // the end of the lesson and never closed or used it). This used to be a blind sweep that
-  // matched ANY ``` surrounded by blank lines — but a properly closed mermaid/svg block's own
-  // closing fence is ALSO surrounded by blank lines (auto-close deliberately adds them), so
-  // that version was stripping legitimate closing fences right along with genuine orphans.
-  // A ``` count that isn't even means something really is unpaired — safe to act on. Only the
-  // trailing unpaired occurrence is removed, not every fence in the document.
+  // If an odd number of ``` fences exist in the document, an opening fence was left unclosed.
+  // Safely append a closing fence rather than deleting the last fence (which would destroy
+  // legitimate diagrams and spill their contents into raw lesson text).
   const fenceCount = (content.match(/```/g) || []).length;
   if (fenceCount % 2 !== 0) {
-    const lastIdx = content.lastIndexOf('```');
-    if (lastIdx !== -1) {
-      content = content.slice(0, lastIdx) + content.slice(lastIdx + 3);
-    }
+    content += '\n```\n';
   }
 
   // Clean up excessive blank lines (4+ → 2)

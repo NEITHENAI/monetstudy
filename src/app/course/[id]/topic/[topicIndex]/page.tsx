@@ -276,10 +276,16 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
   //   1. Old lessons stored in Firestore before the server-side pipeline may still contain
   //      raw/unfenced SVG and mermaid code that would show as plain text without this.
   //   2. The function is idempotent — running it on already-clean content is a no-op.
-  const processContent = (raw: string): string => {
-    if (!raw) return '';
+  // ── Split content into independent segments at code fence boundaries ──
+  // Each text segment renders as its own ReactMarkdown instance, so a malformed
+  // fence can never leak raw text into subsequent content.
+  type Segment = { type: 'text' | 'svg' | 'mermaid' | 'code'; content: string; lang?: string };
+
+  const splitIntoSegments = (raw: string): Segment[] => {
+    if (!raw) return [];
     let content = sanitizeLessonContent(raw);
 
+    // Handle PAGE/FIGURE placeholders
     content = content.replace(/\[PAGE_(\d+)\]/g, (_, num) => {
       const url = pageImageUrls[parseInt(num, 10)];
       if (url) return `\n\n![PDF Page ${num}](${url})\n\n`;
@@ -289,7 +295,185 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
       return `\n\n![Figure ${num}](figure:${num})\n\n`;
     });
 
-    return content.trim();
+    const segments: Segment[] = [];
+    const lines = content.split('\n');
+    let textBuffer: string[] = [];
+    let codeBuffer: string[] = [];
+    let inFence = false;
+    let fenceLang = '';
+
+    const flushText = () => {
+      let text = textBuffer.join('\n').trim();
+      if (text) {
+        // Extra safety: if text contains an unfenced <svg>...</svg>, extract it into its own svg segment!
+        const svgMatch = text.match(/<svg[\s\S]*?<\/svg>/i);
+        if (svgMatch) {
+          const parts = text.split(svgMatch[0]);
+          if (parts[0].trim()) segments.push({ type: 'text', content: parts[0].trim() });
+          segments.push({ type: 'svg', content: svgMatch[0].trim() });
+          if (parts[1] && parts[1].trim()) segments.push({ type: 'text', content: parts[1].trim() });
+        } else {
+          segments.push({ type: 'text', content: text });
+        }
+      }
+      textBuffer = [];
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Safety check: If we are inside an unclosed diagram fence (mermaid or svg) and hit markdown structural text:
+      // A diagram never contains markdown headings, blockquotes, horizontal rules, or bullet lists.
+      // Immediately close and push the diagram segment so all subsequent lines render cleanly as markdown!
+      if (inFence && (
+        trimmed.startsWith('#') ||
+        trimmed.startsWith('>') ||
+        trimmed.startsWith('---') ||
+        trimmed.startsWith('***') ||
+        trimmed.startsWith('* ') ||
+        trimmed.startsWith('- ') ||
+        /^\d+\.\s+\*\*/.test(trimmed)
+      )) {
+        const code = codeBuffer.join('\n');
+        if (fenceLang === 'svg' || code.includes('<svg') || code.includes('</svg>')) {
+          segments.push({ type: 'svg', content: code });
+        } else if (fenceLang === 'mermaid' || /^\s*(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)/i.test(code)) {
+          segments.push({ type: 'mermaid', content: code });
+        } else {
+          segments.push({ type: 'text', content: '```' + fenceLang + '\n' + code + '\n```' });
+        }
+        inFence = false;
+        codeBuffer = [];
+        fenceLang = '';
+        textBuffer.push(line);
+        continue;
+      }
+
+      if (!inFence && /^`{3,}(\w*)$/.test(trimmed)) {
+        // Opening fence — flush text before it
+        flushText();
+        const match = /^`{3,}(\w*)$/.exec(trimmed);
+        fenceLang = match ? match[1].toLowerCase() : '';
+        inFence = true;
+        codeBuffer = [];
+      } else if (inFence && /^`{3,}$/.test(trimmed)) {
+        // Closing fence — classify and push the code segment
+        const code = codeBuffer.join('\n');
+        if (fenceLang === 'svg' || code.includes('<svg') || code.includes('</svg>')) {
+          segments.push({ type: 'svg', content: code });
+        } else if (fenceLang === 'mermaid' || /^\s*(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)/i.test(code)) {
+          segments.push({ type: 'mermaid', content: code });
+        } else {
+          // Other code block — re-wrap in fences for ReactMarkdown to handle
+          segments.push({ type: 'text', content: '```' + fenceLang + '\n' + code + '\n```' });
+        }
+        inFence = false;
+        codeBuffer = [];
+        fenceLang = '';
+      } else if (inFence) {
+        codeBuffer.push(line);
+      } else {
+        textBuffer.push(line);
+      }
+    }
+
+    // Handle unclosed fence — treat remaining code as text (the raw content shows)
+    if (inFence && codeBuffer.length > 0) {
+      // Try to render it as the intended diagram anyway
+      const code = codeBuffer.join('\n');
+      if (fenceLang === 'svg' || code.includes('<svg')) {
+        segments.push({ type: 'svg', content: code });
+      } else if (fenceLang === 'mermaid' || /^\s*(graph|flowchart)/i.test(code)) {
+        segments.push({ type: 'mermaid', content: code });
+      } else {
+        segments.push({ type: 'text', content: code });
+      }
+    }
+    // Flush any remaining text
+    flushText();
+
+    return segments;
+  };
+
+  // ── Shared ReactMarkdown component config ──
+  const markdownComponents = {
+    h2: ({children}: any) => (
+      <h2 style={{
+        fontSize: 23, color: T.text, fontWeight: 900,
+        marginTop: 48, marginBottom: 16, paddingBottom: 8,
+        borderBottom: `1.5px solid ${T.borderMid}`,
+        fontFamily: F.sans, letterSpacing: '-0.5px',
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>{children}</h2>
+    ),
+    h3: ({children}: any) => (
+      <h3 style={{
+        fontSize: 19, color: T.teal, fontWeight: 800,
+        marginTop: 36, marginBottom: 12,
+        fontFamily: F.sans, letterSpacing: '-0.3px',
+      }}>{children}</h3>
+    ),
+    strong: ({children}: any) => <strong style={{ color: T.text, fontWeight: 800 }}>{children}</strong>,
+    ul: ({children}: any) => <ul style={{ paddingLeft: 28, margin: '20px 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>{children}</ul>,
+    ol: ({children}: any) => <ol style={{ paddingLeft: 28, margin: '20px 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>{children}</ol>,
+    li: ({children}: any) => <li style={{ color: T.textSub, lineHeight: 1.85, fontSize: 16 }}>{children}</li>,
+    p: ({children}: any) => <p style={{ marginBottom: 24, lineHeight: 1.95, fontSize: 16 }}>{children}</p>,
+    code: ({children, className, ...props}: any) => {
+      const match = /language-(\w+)/.exec(className || '');
+      const lang = match ? match[1].toLowerCase() : '';
+      const codeContent = String(children || '').replace(/\n$/, '');
+
+      if (lang === 'mermaid' || /^\s*(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)/i.test(codeContent)) {
+        return <MermaidDiagram chart={codeContent} />;
+      }
+      if (lang === 'svg' || lang === 'xml' || codeContent.includes('</svg>') || codeContent.includes('<svg')) {
+        return <SvgIllustration svgCode={codeContent} />;
+      }
+      return (
+        <code style={{ background: T.card2, padding: '3px 10px', borderRadius: 8, fontFamily: F.mono, fontSize: 14, color: T.teal, border: `1px solid ${T.border}` }} className={className} {...props}>
+          {children}
+        </code>
+      );
+    },
+    pre: ({children}: any) => <div style={{ margin: '24px 0' }}>{children}</div>,
+    blockquote: ({children}: any) => (
+      <blockquote style={{
+        background: T.card2, padding: '20px 24px',
+        borderRadius: '0 20px 20px 0', margin: '32px 0',
+        color: T.text, lineHeight: 1.85, fontSize: 15.5,
+        boxShadow: '0 4px 20px rgba(44,24,16,0.03)',
+        border: `1px solid ${T.border}`,
+        borderLeft: `4px solid ${T.teal}`,
+      }}>{children}</blockquote>
+    ),
+    img: ({src, alt}: any) => <SmartImage src={src || ''} alt={alt || ''} T={T} />,
+    table: ({children}: any) => (
+      <div style={{
+        overflowX: 'auto', margin: '36px 0', borderRadius: 18,
+        border: `1.5px solid ${T.borderMid}`, background: T.card,
+        boxShadow: '0 4px 24px rgba(44, 24, 16, 0.04)',
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 14.5, fontFamily: F.sans }}>{children}</table>
+      </div>
+    ),
+    thead: ({children}: any) => <thead style={{ background: T.card2, borderBottom: `2px solid ${T.borderMid}` }}>{children}</thead>,
+    tbody: ({children}: any) => <tbody>{children}</tbody>,
+    tr: ({children}: any) => <tr style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.2s' }}>{children}</tr>,
+    th: ({children}: any) => <th style={{ padding: '16px 20px', fontWeight: 800, color: T.text, fontSize: 13.5, letterSpacing: '0.4px', textTransform: 'uppercase' as const }}>{children}</th>,
+    td: ({children}: any) => <td style={{ padding: '16px 20px', color: T.textSub, lineHeight: 1.7 }}>{children}</td>,
+    hr: () => <hr style={{ border: 'none', borderTop: `1.5px solid ${T.borderMid}`, margin: '44px 0' }} />,
+  };
+
+  // ── Render a single segment ──
+  const renderSegment = (seg: Segment, i: number) => {
+    if (seg.type === 'svg') return <div key={i} style={{ margin: '24px 0' }}><SvgIllustration svgCode={seg.content} /></div>;
+    if (seg.type === 'mermaid') return <div key={i} style={{ margin: '24px 0' }}><MermaidDiagram chart={seg.content} /></div>;
+    return (
+      <ReactMarkdown key={i} remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={markdownComponents}>
+        {seg.content}
+      </ReactMarkdown>
+    );
   };
 
   if (loading) return (
@@ -352,103 +536,7 @@ When short-term nominal interest rates reach the **zero lower bound (ZLB)**, sta
         </h1>
 
         <div style={{ color: T.textSub, fontSize: 16, lineHeight: 1.95, fontFamily: F.sans, letterSpacing: '-0.05px' }}>
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex]}
-            components={{
-              h2: ({children}) => (
-                <h2 style={{
-                  fontSize: 23,
-                  color: T.text,
-                  fontWeight: 900,
-                  marginTop: 48,
-                  marginBottom: 16,
-                  paddingBottom: 8,
-                  borderBottom: `1.5px solid ${T.borderMid}`,
-                  fontFamily: F.sans,
-                  letterSpacing: '-0.5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}>
-                  {children}
-                </h2>
-              ),
-              h3: ({children}) => (
-                <h3 style={{
-                  fontSize: 19,
-                  color: T.teal,
-                  fontWeight: 800,
-                  marginTop: 36,
-                  marginBottom: 12,
-                  fontFamily: F.sans,
-                  letterSpacing: '-0.3px',
-                }}>
-                  {children}
-                </h3>
-              ),
-              strong: ({children}) => <strong style={{ color: T.text, fontWeight: 800 }}>{children}</strong>,
-              ul: ({children}) => <ul style={{ paddingLeft: 28, margin: '20px 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>{children}</ul>,
-              ol: ({children}) => <ol style={{ paddingLeft: 28, margin: '20px 0 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>{children}</ol>,
-              li: ({children}) => <li style={{ color: T.textSub, lineHeight: 1.85, fontSize: 16 }}>{children}</li>,
-              p: ({children}) => <p style={{ marginBottom: 24, lineHeight: 1.95, fontSize: 16 }}>{children}</p>,
-              code: ({children, className, ...props}) => {
-                const match = /language-(\w+)/.exec(className || '');
-                const lang = match ? match[1].toLowerCase() : '';
-                const codeContent = String(children || '').replace(/\n$/, '');
-
-                if (lang === 'mermaid' || /^\s*(graph|flowchart|sequenceDiagram|stateDiagram|classDiagram|erDiagram|mindmap)/i.test(codeContent)) {
-                  return <MermaidDiagram chart={codeContent} />;
-                }
-                if (lang === 'svg' || lang === 'xml' || codeContent.includes('</svg>') || codeContent.includes('<svg')) {
-                  return <SvgIllustration svgCode={codeContent} />;
-                }
-                return (
-                  <code style={{ background: T.card2, padding: '3px 10px', borderRadius: 8, fontFamily: F.mono, fontSize: 14, color: T.teal, border: `1px solid ${T.border}` }} className={className} {...props}>
-                    {children}
-                  </code>
-                );
-              },
-              pre: ({children}) => <div style={{ margin: '24px 0' }}>{children}</div>,
-              blockquote: ({children}) => (
-                <blockquote style={{
-                  background: T.card2,
-                  padding: '20px 24px',
-                  borderRadius: '0 20px 20px 0',
-                  margin: '32px 0',
-                  color: T.text,
-                  lineHeight: 1.85,
-                  fontSize: 15.5,
-                  boxShadow: '0 4px 20px rgba(44,24,16,0.03)',
-                  border: `1px solid ${T.border}`,
-                  borderLeft: `4px solid ${T.teal}`,
-                }}>
-                  {children}
-                </blockquote>
-              ),
-              img: ({src, alt}) => <SmartImage src={src || ''} alt={alt || ''} T={T} />,
-              table: ({children}) => (
-                <div style={{
-                  overflowX: 'auto',
-                  margin: '36px 0',
-                  borderRadius: 18,
-                  border: `1.5px solid ${T.borderMid}`,
-                  background: T.card,
-                  boxShadow: '0 4px 24px rgba(44, 24, 16, 0.04)',
-                }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 14.5, fontFamily: F.sans }}>{children}</table>
-                </div>
-              ),
-              thead: ({children}) => <thead style={{ background: T.card2, borderBottom: `2px solid ${T.borderMid}` }}>{children}</thead>,
-              tbody: ({children}) => <tbody>{children}</tbody>,
-              tr: ({children}) => <tr style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.2s' }}>{children}</tr>,
-              th: ({children}) => <th style={{ padding: '16px 20px', fontWeight: 800, color: T.text, fontSize: 13.5, letterSpacing: '0.4px', textTransform: 'uppercase' }}>{children}</th>,
-              td: ({children}) => <td style={{ padding: '16px 20px', color: T.textSub, lineHeight: 1.7 }}>{children}</td>,
-              hr: () => <hr style={{ border: 'none', borderTop: `1.5px solid ${T.borderMid}`, margin: '44px 0' }} />,
-            }}
-          >
-            {processContent(topic.content)}
-          </ReactMarkdown>
+          {splitIntoSegments(topic.content).map(renderSegment)}
           {topic && <VoiceNarrator text={topic.content} theme={T} />}
         </div>
 

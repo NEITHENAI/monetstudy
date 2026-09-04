@@ -3,8 +3,8 @@ import { sanitizeLessonContent } from '@/lib/content/sanitizeLessonContent';
 
 const POLLINATIONS_BASE = 'https://text.pollinations.ai/openai';
 const DEEPSEEK_BASE = 'https://api.deepseek.com';
-const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || 'sk-9fb97d0a824c4c519f4be54d4a7d0b09';
-const NVIDIA_KEY = process.env.NVIDIA_API_KEY || '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';
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || '';
+const NVIDIA_KEY = process.env.NVIDIA_API_KEY || '';
 const NVIDIA_IMG_URL = 'https://ai.api.nvidia.com/v1/genai/stabilityai/stable-diffusion-xl';
 
 type MessageContent = string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
@@ -42,9 +42,86 @@ function cleanMarkdown(raw: string): string {
   return content;
 }
 
-async function callGemini(messages: Message[], temperature = 0.7, retries = 3): Promise<string> {
-  let attempt = 0;
-  while (attempt <= retries) {
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-flash-latest',
+  'gemini-3.6-flash',
+];
+
+async function callGeminiNative(messages: any[], temperature = 0.7, retries = 2): Promise<string> {
+  let systemText = '';
+  const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+
+  for (const m of messages) {
+    if (m.role === 'system') {
+      systemText += (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)) + '\n\n';
+      continue;
+    }
+    const role = m.role === 'assistant' ? 'model' : 'user';
+    let text = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+    if (role === 'user' && systemText) {
+      text = systemText + text;
+      systemText = ''; // prepend once
+    }
+    contents.push({ role, parts: [{ text }] });
+  }
+
+  if (contents.length === 0 && systemText) {
+    contents.push({ role: 'user', parts: [{ text: systemText }] });
+  }
+
+  for (const model of GEMINI_MODELS) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents,
+            generationConfig: {
+              temperature,
+              maxOutputTokens: 8192,
+            },
+          }),
+        });
+
+        if (res.status === 429 || res.status === 503) {
+          // Model busy/spiking — try next attempt or model
+          if (attempt < retries) {
+            await delay(1500 * (attempt + 1));
+            continue;
+          }
+          break; // move to next model in GEMINI_MODELS
+        }
+
+        if (!res.ok) {
+          const err = await res.text();
+          console.warn(`[Gemini:${model}] HTTP ${res.status}:`, err.slice(0, 200));
+          break; // move to next model
+        }
+
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text;
+      } catch (e: any) {
+        console.warn(`[Gemini:${model}] Exception:`, e?.message);
+        if (attempt < retries) {
+          await delay(1500 * (attempt + 1));
+          continue;
+        }
+      }
+    }
+  }
+
+  console.warn('[Gemini] All models busy or exhausted. Falling back to DeepSeek...');
+  return callDeepSeek(messages, temperature, retries);
+}
+
+async function callPollinations(messages: any[], temperature = 0.7, retries = 2): Promise<string> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(`${POLLINATIONS_BASE}/chat/completions`, {
         method: 'POST',
@@ -56,26 +133,21 @@ async function callGemini(messages: Message[], temperature = 0.7, retries = 3): 
         return (data?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.reasoning_content || '') as string;
       }
       if (attempt < retries) {
-        attempt++;
-        console.warn(`[Pollinations] Attempt ${attempt} failed (${res.status}), retrying...`);
-        await delay(2000 * attempt);
+        await delay(2000 * (attempt + 1));
         continue;
       }
-      return ''; // Return empty instead of throwing — non-blocking
+      return '';
     } catch (e) {
       if (attempt < retries) {
-        attempt++;
-        await delay(2000 * attempt);
+        await delay(2000 * (attempt + 1));
         continue;
       }
-      console.error('[Pollinations] All retries failed:', e);
-      return ''; // Return empty instead of throwing
     }
   }
   return '';
 }
 
-async function callDeepSeek(messages: any[], temperature = 0.7, retries = 3): Promise<string> {
+async function callDeepSeek(messages: any[], temperature = 0.7, retries = 2): Promise<string> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
@@ -116,7 +188,12 @@ async function callDeepSeek(messages: any[], temperature = 0.7, retries = 3): Pr
     }
   }
   console.error('[DeepSeek] All retries exhausted. Falling back to Pollinations...');
-  return callGemini(messages, temperature);
+  return callPollinations(messages, temperature);
+}
+
+async function callAI(messages: any[], temperature = 0.7): Promise<string> {
+  // Use Google Gemini first (1M context, high quality, free tier)
+  return callGeminiNative(messages, temperature);
 }
 
 // ─── IMAGE GENERATION (Gemini 2.5 Flash) ───────────────────────────
@@ -180,7 +257,7 @@ async function generateImage(prompt: string): Promise<string> {
 
 async function analyzeImage(url: string, pageNum: number): Promise<string> {
   try {
-    const content = await callGemini([
+    const content = await callPollinations([
       { 
         role: 'system', 
         content: `You are a Technical Visual Cataloger. Analyze this PDF page (Page ${pageNum}) for educational value. 
@@ -278,7 +355,7 @@ export async function generateCourse(params: {
     pageAnalyses = analyses.join('\n\n');
   }
 
-  // 2. Generate Outline with DeepSeek
+  // 2. Generate Outline with Gemini
   const wordCount = fullMaterial.trim().split(/\s+/).length;
   const charCount = fullMaterial.length;
 
@@ -295,7 +372,7 @@ export async function generateCourse(params: {
     targetTopicCount = '6 to 10 essential topics';
   }
 
-  const outlineRaw = await callDeepSeek([
+  const outlineRaw = await callAI([
     {
       role: 'system',
       content: `You are an elite academic curriculum architect. Your task is to design an exhaustive, complete course syllabus that fully covers all material in the provided source text. Never artificially restrict, condense, or truncate the number of topics. Cover 100% of the material.`,
@@ -391,13 +468,17 @@ graph TD
 3. CRITICAL CODE FENCE & FORMATTING RULES:
    - ALWAYS place \`\`\`mermaid or \`\`\`svg on its OWN line before the diagram starts.
    - ALWAYS put each node, connection, and style directive on a SEPARATE line (never cram the whole diagram onto a single line).
-   - ALWAYS close every diagram block with \`\`\` on its own line before continuing with text.
+   - In Mermaid diagrams, node IDs MUST be alphanumeric/underscores ONLY (e.g., A, B, Volatility, S_R, Setup1). NEVER use slashes '/' in node IDs (use 'SR' or 'S_R', never 'S/R').
    - ALWAYS complete every SVG with its closing </svg> tag before finishing the code block.
-4. After each diagram, provide a 1-2 sentence observation note highlighting what the student should observe.
+   - ALWAYS close every diagram block with \`\`\` on its own line.
+   - MANDATORY: Leave TWO full blank lines after the closing \`\`\` before continuing with any observation note or section text.
+   - MANDATORY: Every Markdown heading (## or ###) MUST be on its own dedicated line, followed by a blank line before the paragraph starts. NEVER start a paragraph on the same line as a heading.
+   - MANDATORY: Every bullet list item (-) MUST start on a new line.
+4. After each diagram, provide a 1-2 sentence observation note highlighting what the student should observe (e.g. "> **Observation:** ...").
 
 Start directly with # ${t.title}.`;
 
-      const contentRaw = await callDeepSeek([
+      const contentRaw = await callAI([
         {
           role: 'system',
           content: `You are a world-class academic author and visual educator. Respond ONLY with the markdown lesson including the Mermaid or SVG code blocks. No introductory or closing remarks.`,
@@ -442,7 +523,7 @@ export async function generateQuestions(
   topicContent: string,
   count: number
 ): Promise<GeneratedQuestion[]> {
-  const raw = await callDeepSeek([
+  const raw = await callAI([
     {
       role: 'system',
       content: `You are a professional quiz and exam designer. Respond ONLY with a valid JSON array of questions. No markdown backticks, no preamble.`,

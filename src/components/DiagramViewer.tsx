@@ -51,6 +51,11 @@ function formatMermaidCode(raw: string): string {
   let clean = (raw || '').trim().replace(/^```(?:mermaid)?\s*/i, '').replace(/```$/, '').trim();
   clean = clean.replace(/^mermaid\s+/i, '').trim();
 
+  // 0. Normalize node IDs with slashes (e.g. S/R -> S_R) outside of quotes/brackets
+  //    Mermaid grammar forbids '/' in unquoted identifiers, and word boundaries (\b)
+  //    would otherwise split "S/R" into "S/" and "R -->", breaking the diagram.
+  clean = clean.replace(/\b([A-Za-z0-9_]+)\/([A-Za-z0-9_]+)\b(?=\s*(?:\[|\(|\{|\>|-->|--\>|==>))/g, '$1_$2');
+
   // 1. Separate graph header from following nodes — do this FIRST so statement-splitting
   //    below doesn't have to special-case the header line.
   clean = clean.replace(/^(graph\s+(?:TD|TB|BT|RL|LR)|flowchart\s+(?:TD|TB|BT|RL|LR)|sequenceDiagram|stateDiagram(?:-v2)?|classDiagram|erDiagram|mindmap|quadrantChart)\s+/i, '$1\n    ');
