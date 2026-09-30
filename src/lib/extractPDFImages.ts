@@ -16,26 +16,36 @@ export async function extractPDFWithImages(file: File): Promise<{
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const maxPages = Math.min(pdf.numPages, 10); // cap at 20 pages
+  
+  // Uncap page reading: read up to 120 pages for full book & lecture coverage
+  const totalPagesToRead = Math.min(pdf.numPages, 120);
+  // Render visual page thumbnails for the first 12 pages to preserve browser memory
+  const maxImagePages = Math.min(pdf.numPages, 12);
 
   const pages: ExtractedPage[] = [];
-  console.log('[MonetStudy] Starting PDF extraction, pages:', maxPages);
+  console.log(`[MonetStudy] Starting comprehensive PDF extraction (${totalPagesToRead} of ${pdf.numPages} pages)`);
 
-  for (let i = 1; i <= maxPages; i++) {
+  for (let i = 1; i <= totalPagesToRead; i++) {
     const page = await pdf.getPage(i);
 
-    // Extract text
+    // Extract text across all pages
     const content = await page.getTextContent();
     const text = content.items.map((item: any) => item.str).join(' ');
 
-    // Render to canvas
-    const viewport = page.getViewport({ scale: 1.5 });
-    const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const ctx = canvas.getContext('2d')!;
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    const imageBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+    let imageBase64 = '';
+    if (i <= maxImagePages) {
+      try {
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d')!;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        imageBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+      } catch (renderErr) {
+        console.warn(`[MonetStudy] Could not render image for page ${i}:`, renderErr);
+      }
+    }
 
     pages.push({ pageNum: i, text, imageBase64 });
   }

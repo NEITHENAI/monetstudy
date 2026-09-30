@@ -24,7 +24,7 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 export async function getEmbedding(text: string, retries = 3): Promise<number[]> {
-  const geminiKey = process.env.GEMINI_API_KEY || 'AIzaSyDb0Io4DWYrFOwJ3vZw8RFM1L4C3RdRPq8';
+  const geminiKey = process.env.GEMINI_API_KEY || '';
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiKey}`, {
@@ -57,7 +57,7 @@ export async function getEmbedding(text: string, retries = 3): Promise<number[]>
 }
 
 export async function batchEmbed(chunks: string[]): Promise<number[][]> {
-  const geminiKey = process.env.GEMINI_API_KEY || 'AIzaSyDb0Io4DWYrFOwJ3vZw8RFM1L4C3RdRPq8';
+  const geminiKey = process.env.GEMINI_API_KEY || '';
   const embeddings: number[][] = [];
   
   // Batch in groups of 10 to stay well within rate limits

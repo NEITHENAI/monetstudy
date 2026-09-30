@@ -333,12 +333,12 @@ export async function generateCourse(params: {
     }
   }
 
-  // Handle RAG for massive documents
-  const isMassive = fullMaterial.length > 50000;
+  // Handle RAG for massive documents (>120k chars / ~25k words)
+  const isMassive = fullMaterial.length > 120000;
   let docChunks: string[] = [];
   let docEmbeddings: number[][] = [];
   if (isMassive) {
-    console.log('[AI Client] Document is massive (>50k chars). Beginning RAG chunking and embedding...');
+    console.log('[AI Client] Document is massive (>120k chars). Beginning RAG chunking and embedding...');
     docChunks = chunkText(fullMaterial);
     console.log(`[AI Client] Created ${docChunks.length} chunks. Embedding...`);
     docEmbeddings = await batchEmbed(docChunks);
@@ -359,23 +359,25 @@ export async function generateCourse(params: {
   const wordCount = fullMaterial.trim().split(/\s+/).length;
   const charCount = fullMaterial.length;
 
-  let targetTopicCount = '8 to 14 comprehensive topics';
-  if (wordCount > 20000 || charCount > 90000) {
-    targetTopicCount = '18 to 32 exhaustive topics covering every chapter, framework, model, and case study';
-  } else if (wordCount > 7000 || charCount > 30000) {
-    targetTopicCount = '12 to 20 detailed topics covering all key sections and mechanisms';
-  } else if (wordCount > 2500 || charCount > 12000) {
-    targetTopicCount = '8 to 16 structured topics covering the full scope of the text';
+  let targetTopicCount = '10 to 18 comprehensive, fully-explained topics';
+  if (wordCount > 35000 || charCount > 180000) {
+    targetTopicCount = '30 to 50 exhaustive, dedicated topics covering every single chapter, theorem, model, and operational mechanism in full depth';
+  } else if (wordCount > 15000 || charCount > 75000) {
+    targetTopicCount = '22 to 36 exhaustive topics covering all frameworks, rules, algorithms, and practical applications';
+  } else if (wordCount > 6000 || charCount > 30000) {
+    targetTopicCount = '16 to 26 in-depth topics covering all sections and principles without combining or summarizing them';
+  } else if (wordCount > 2000 || charCount > 10000) {
+    targetTopicCount = '12 to 20 dedicated topics covering the complete depth of the provided material';
   } else if (params.pace === 'Thorough') {
-    targetTopicCount = '10 to 18 in-depth topics';
+    targetTopicCount = '14 to 24 in-depth topics';
   } else if (params.pace === 'Compact') {
-    targetTopicCount = '6 to 10 essential topics';
+    targetTopicCount = '8 to 14 essential topics';
   }
 
   const outlineRaw = await callAI([
     {
       role: 'system',
-      content: `You are an elite academic curriculum architect. Your task is to design an exhaustive, complete course syllabus that fully covers all material in the provided source text. Never artificially restrict, condense, or truncate the number of topics. Cover 100% of the material.`,
+      content: `You are an elite academic curriculum architect. Your task is to design an exhaustive, complete course syllabus that fully covers all material in the provided source text. Never artificially restrict, condense, or truncate the number of topics. Our educational mission is to teach and explain every concept in complete detail, not summarize. Cover 100% of the material.`,
     },
     {
       role: 'user',
@@ -383,13 +385,14 @@ export async function generateCourse(params: {
 
 IMPORTANT SYLLABUS GUIDELINES:
 1. EXHAUSTIVE COVERAGE: Every single chapter, core concept, trading rule, financial model, scientific mechanism, formula, and methodology in the uploaded text MUST be converted into its own dedicated lesson topic.
-2. TOPIC COUNT IS PROPORTIONAL TO BOOK SIZE: For this material volume (~${wordCount} words / ${charCount} chars), generate ${targetTopicCount}.
-3. DO NOT ARTIFICIALLY CONSOLIDATE OR OMIT SUBSECTIONS. Produce as many topics as needed so that no content is left unaddressed.
-4. Style: ${params.style}, Depth: ${params.depth}, Goal: ${params.goal}, Pace: ${params.pace}. ${paceGuide}
+2. WE TEACH, NOT SUMMARIZE: Never combine distinct major concepts, theorems, or chapters into a single summary topic. Generate as many distinct topics as necessary so each concept is thoroughly explained from first principles.
+3. TOPIC COUNT IS PROPORTIONAL TO BOOK SIZE: For this material volume (~${wordCount} words / ${charCount} chars), generate ${targetTopicCount}.
+4. DO NOT ARTIFICIALLY CONSOLIDATE OR OMIT SUBSECTIONS. Produce as many topics as needed so that no content is left unaddressed.
+5. Style: ${params.style}, Depth: ${params.depth}, Goal: ${params.goal}, Pace: ${params.pace}. ${paceGuide}
 ${params.customInstructions ? `\nUSER CUSTOM INSTRUCTIONS (prioritize these):\n${params.customInstructions}\n` : ''}
 
 SOURCE MATERIAL (read across the entire text):
-${fullMaterial.slice(0, 120000)}
+${fullMaterial.slice(0, 400000)}
 
 Respond with ONLY valid JSON with this exact structure:
 {
